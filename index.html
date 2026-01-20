@@ -3,158 +3,149 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Mobile Quadrant Processor</title>
+  <title>Quadratic Symmetry</title>
   <style>
     :root { --accent: #0088ff; --bg: #0a0a0a; --panel: #1a1a1a; }
     body { 
       margin: 0; background-color: var(--bg); color: #eee; 
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      display: flex; flex-direction: column; height: 100vh; overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex; flex-direction: column; align-items: center; min-height: 100vh; overflow-y: auto;
     }
 
-    /* Main Viewport */
-    #viewer {
-      flex: 1; display: flex; align-items: center; justify-content: center;
-      padding: 10px; box-sizing: border-box; background: radial-gradient(circle, #222 0%, #0a0a0a 100%);
-    }
-    canvas {
-      max-width: 100%; max-height: 100%;
-      image-rendering: pixelated; aspect-ratio: 1/1;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5); background: #000;
+    /* Layout Container */
+    #app { width: 100%; max-width: 500px; display: flex; flex-direction: column; align-items: center; padding-bottom: 40px; }
+
+    #viewer { width: 100%; aspect-ratio: 1/1; background: #000; display: flex; align-items: center; justify-content: center; position: sticky; top: 0; z-index: 5; }
+    canvas { width: 100%; height: 100%; image-rendering: pixelated; object-fit: contain; }
+
+    /* Controls Container - Now positioned below canvas */
+    #controls { 
+      width: 100%; background: var(--panel); border-top: 1px solid #333;
+      display: flex; flex-direction: column; gap: 10px; padding: 15px; box-sizing: border-box;
     }
 
-    /* Mobile Bottom Sheet Controls */
-    #controls {
-      background: var(--panel); border-top: 1px solid #333;
-      padding: 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom));
-      display: flex; flex-direction: column; gap: 12px;
-      box-shadow: 0 -5px 20px rgba(0,0,0,0.4);
-    }
+    .scroll-row { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 5px; -webkit-overflow-scrolling: touch; }
+    .scroll-row::-webkit-scrollbar { display: none; }
 
-    /* Horizontal Scroll for Buttons */
-    .scroll-row {
-      display: flex; overflow-x: auto; gap: 8px; padding-bottom: 4px;
-      scrollbar-width: none; /* Hide scrollbar Firefox */
+    .btn { 
+      background: #333; border: 1px solid #444; color: #fff; padding: 10px 14px; 
+      border-radius: 8px; font-size: 13px; font-weight: 600; white-space: nowrap; 
     }
-    .scroll-row::-webkit-scrollbar { display: none; } /* Hide scrollbar Chrome/Safari */
+    .btn.active { background: var(--accent); border-color: #55aaff; }
+    .btn-primary { background: var(--accent); border: none; width: 100%; margin-bottom: 5px; }
 
-    .btn {
-      background: #333; border: 1px solid #444; color: #fff;
-      padding: 10px 16px; border-radius: 8px; font-size: 14px;
-      font-weight: 600; white-space: nowrap; transition: 0.2s;
-      display: flex; align-items: center; justify-content: center; min-width: 60px;
-    }
-    .btn:active { transform: scale(0.95); background: #444; }
-    .btn.active-effect { background: var(--accent); border-color: #55aaff; }
-    .btn-primary { background: var(--accent); border: none; }
-
-    /* Grid Control Bar */
-    .grid-ui {
-      display: flex; align-items: center; gap: 12px; background: #222;
-      padding: 8px 12px; border-radius: 10px;
-    }
-    input[type="range"] { flex: 1; accent-color: var(--accent); height: 20px; }
-    #gridSizeDisplay { font-family: monospace; font-size: 14px; min-width: 55px; color: #00ffcc; text-align: right; }
-    
-    #videoFeed { display: none; }
+    .control-group { background: #222; padding: 10px; border-radius: 10px; display: flex; flex-direction: column; gap: 8px; }
+    .slider-row { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #aaa; }
+    .slider-row label { min-width: 70px; text-transform: uppercase; }
+    input[type="range"] { flex: 1; accent-color: var(--accent); }
+    .val-dis { min-width: 35px; text-align: right; color: #00ffcc; font-family: monospace; }
   </style>
 </head>
 <body>
-  <video id="videoFeed" playsinline autoplay muted></video>
+  <video id="videoFeed" playsinline autoplay muted style="display:none"></video>
   
-  <div id="viewer">
-    <canvas id="canvas"></canvas>
-  </div>
+  <div id="app">
+    <div id="viewer"><canvas id="canvas"></canvas></div>
 
-  <div id="controls">
-    <div class="grid-ui">
-        <select id="gridMode" class="btn" style="padding: 5px; font-size: 12px;">
-            <option value="auto">AUTO</option>
-            <option value="manual">MAN</option>
-        </select>
-        <input type="range" id="gridSlider" min="1" max="100" value="10">
-        <span id="gridSizeDisplay">10x10</span>
-    </div>
+    <div id="controls">
+      <button id="startBtn" class="btn btn-primary">START CAMERA</button>
+      <button id="stopBtn" class="btn" style="display: none; background: #800; border:none; width:100%;">STOP</button>
 
-    <div class="scroll-row">
-        <button id="startBtn" class="btn btn-primary">Start Camera</button>
-        <button id="stopBtn" class="btn" style="display: none;">Stop</button>
-        <button id="effectA1" class="btn effect-btn" onclick="setEffect('A1')">A1</button>
-        <button id="effectA2" class="btn effect-btn" onclick="setEffect('A2')">A2</button>
-        <button id="effectB1" class="btn effect-btn" onclick="setEffect('B1')">B1</button>
-        <button id="effectB2" class="btn effect-btn" onclick="setEffect('B2')">B2</button>
-        <button class="btn" onclick="clearEffect()">Original</button>
-        <button class="btn" onclick="downloadImage()">Save</button>
+      <div class="control-group">
+        <div class="slider-row">
+            <label>Grid Mode</label>
+            <select id="gridMode" class="btn" style="padding: 2px 8px; font-size: 11px;">
+                <option value="auto">AUTO (LUMA)</option>
+                <option value="manual">MANUAL</option>
+            </select>
+            <input type="range" id="gridSlider" min="1" max="100" value="10">
+            <span id="gridSizeDisplay" class="val-dis">10x10</span>
+        </div>
+        <div class="slider-row">
+            <label>Color Mode</label>
+            <button id="colorToggle" class="btn" style="padding: 2px 10px; font-size: 11px;">COLOR</button>
+        </div>
+      </div>
+
+      <div class="control-group">
+        <div class="slider-row">
+            <label>Brightness</label>
+            <input type="range" id="brightRange" min="0" max="200" value="100">
+            <span id="brightVal" class="val-dis">100%</span>
+        </div>
+        <div class="slider-row">
+            <label>Contrast</label>
+            <input type="range" id="contrastRange" min="0" max="200" value="100">
+            <span id="contrastVal" class="val-dis">100%</span>
+        </div>
+        <div class="slider-row">
+            <label>Saturation</label>
+            <input type="range" id="saturateRange" min="0" max="200" value="100">
+            <span id="saturateVal" class="val-dis">100%</span>
+        </div>
+      </div>
+
+      <div class="scroll-row">
+          <button id="effectA1" class="btn effect-btn" onclick="setEffect('A1')">A1</button>
+          <button id="effectA2" class="btn effect-btn" onclick="setEffect('A2')">A2</button>
+          <button id="effectB1" class="btn effect-btn" onclick="setEffect('B1')">B1</button>
+          <button id="effectB2" class="btn effect-btn" onclick="setEffect('B2')">B2</button>
+          <button class="btn" onclick="clearEffect()">ORIGINAL</button>
+          <button class="btn" onclick="downloadImage()">SAVE PNG</button>
+      </div>
     </div>
   </div>
 
   <script>
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d', { alpha: false });
-    const video = document.getElementById('videoFeed');
-    const startBtn = document.getElementById('startBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    const gridSlider = document.getElementById('gridSlider');
-    const gridMode = document.getElementById('gridMode');
-    const gridSizeDisplay = document.getElementById('gridSizeDisplay');
+    const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d', { alpha: false });
+    const video = document.getElementById('videoFeed'), startBtn = document.getElementById('startBtn'), stopBtn = document.getElementById('stopBtn');
+    const gridSlider = document.getElementById('gridSlider'), gridMode = document.getElementById('gridMode'), gridSizeDisplay = document.getElementById('gridSizeDisplay');
+    const colorToggle = document.getElementById('colorToggle');
+    
+    // Sliders
+    const bSlider = document.getElementById('brightRange'), cSlider = document.getElementById('contrastRange'), sSlider = document.getElementById('saturateRange');
+    
+    const offCanvas = document.createElement('canvas'), offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
+    const tempCanvas = document.createElement('canvas'), tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
 
-    const offCanvas = document.createElement('canvas');
-    const offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
-    const tempCanvas = document.createElement('canvas');
-    const tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+    let stream = null, cols = 10, rows = 10, activeEffect = null, isRunning = false, isBW = false;
 
-    let stream = null;
-    let cols = 10, rows = 10;
-    let activeEffect = null;
-    let isRunning = false;
+    colorToggle.onclick = () => { isBW = !isBW; colorToggle.textContent = isBW ? "B&W" : "COLOR"; colorToggle.classList.toggle('active', isBW); };
 
-    gridSlider.oninput = () => {
-        if (gridMode.value === 'manual') {
-            cols = rows = parseInt(gridSlider.value);
-            gridSizeDisplay.textContent = `${cols}x${rows}`;
-        }
-    };
+    gridSlider.oninput = () => { if (gridMode.value === 'manual') { cols = rows = parseInt(gridSlider.value); gridSizeDisplay.textContent = `${cols}x${rows}`; }};
 
     async function startWebcam() {
         try {
-            // Mobile: use 'environment' for back camera, 'user' for front
-            const constraints = { 
-                video: { facingMode: 'environment', width: { ideal: 720 }, height: { ideal: 720 } } 
-            };
-            stream = await navigator.mediaDevices.getUserMedia(constraints);
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 720, height: 720 } });
             video.srcObject = stream;
-            
             video.onloadeddata = () => {
                 video.play();
                 const size = Math.min(video.videoWidth, video.videoHeight);
-                canvas.width = canvas.height = size;
-                offCanvas.width = offCanvas.height = size;
-                isRunning = true;
-                startBtn.style.display = 'none';
-                stopBtn.style.display = 'inline-block';
+                canvas.width = canvas.height = offCanvas.width = offCanvas.height = size;
+                isRunning = true; startBtn.style.display = 'none'; stopBtn.style.display = 'block';
                 requestAnimationFrame(loop);
             };
-        } catch (err) {
-            alert("Please allow camera access.");
-        }
+        } catch (err) { alert("Camera Error: " + err.message); }
     }
 
-    function stopWebcam() {
-        isRunning = false;
-        if (stream) stream.getTracks().forEach(t => t.stop());
-        startBtn.style.display = 'inline-block';
-        stopBtn.style.display = 'none';
-        ctx.clearRect(0,0,canvas.width, canvas.height);
-    }
+    function stopWebcam() { isRunning = false; if (stream) stream.getTracks().forEach(t => t.stop()); startBtn.style.display = 'block'; stopBtn.style.display = 'none'; }
 
     function loop() {
         if (!isRunning) return;
         if (video.readyState === video.HAVE_ENOUGH_DATA) {
             const size = canvas.width;
-            const cropX = (video.videoWidth - size) / 2;
-            const cropY = (video.videoHeight - size) / 2;
+            const cropX = (video.videoWidth - size) / 2, cropY = (video.videoHeight - size) / 2;
 
+            // Apply filters to the drawing context
+            let filterStr = `brightness(${bSlider.value}%) contrast(${cSlider.value}%) saturate(${isBW ? 0 : sSlider.value}%)`;
+            offCtx.filter = filterStr;
             offCtx.drawImage(video, cropX, cropY, size, size, 0, 0, size, size);
+            
+            // Update labels
+            document.getElementById('brightVal').textContent = bSlider.value + '%';
+            document.getElementById('contrastVal').textContent = cSlider.value + '%';
+            document.getElementById('saturateVal').textContent = sSlider.value + '%';
+
             const imgData = offCtx.getImageData(0, 0, size, size);
 
             if (gridMode.value === 'auto') {
@@ -165,26 +156,19 @@
                 gridSlider.value = cols;
             }
 
-            if (activeEffect) {
-                renderKaleidoscope(imgData);
-            } else {
-                ctx.drawImage(offCanvas, 0, 0);
-            }
+            if (activeEffect) renderKaleidoscope(imgData);
+            else { ctx.filter = filterStr; ctx.drawImage(offCanvas, 0, 0); }
         }
         requestAnimationFrame(loop);
     }
 
     function renderKaleidoscope(source) {
-        const size = canvas.width;
-        const data = source.data;
+        const size = canvas.width, data = source.data;
         ctx.imageSmoothingEnabled = false;
-
         for (let r = 0; r < rows; r++) {
             for (let c = 0; c < cols; c++) {
-                const x = Math.floor(c * size / cols);
-                const y = Math.floor(r * size / rows);
-                const w = Math.floor((c + 1) * size / cols) - x;
-                const h = Math.floor((r + 1) * size / rows) - y;
+                const x = Math.floor(c * size / cols), y = Math.floor(r * size / rows);
+                const w = Math.floor((c + 1) * size / cols) - x, h = Math.floor((r + 1) * size / rows) - y;
                 const qw = Math.floor(w / 2), qh = Math.floor(h / 2);
                 if (qw <= 0 || qh <= 0) continue;
 
@@ -194,8 +178,7 @@
                 if (activeEffect === 'B2') { sx += qw; sy += qh; }
 
                 tempCanvas.width = qw; tempCanvas.height = qh;
-                const tImg = tempCtx.createImageData(qw, qh);
-                const tD = tImg.data;
+                const tImg = tempCtx.createImageData(qw, qh), tD = tImg.data;
                 for (let py = 0; py < qh; py++) {
                     for (let px = 0; px < qw; px++) {
                         const sIdx = ((sy + py) * source.width + (sx + px)) * 4;
@@ -204,8 +187,7 @@
                     }
                 }
                 tempCtx.putImageData(tImg, 0, 0);
-
-                const bW = qw + 0.5, bH = qh + 0.5; // Bleed to prevent borders
+                const bW = qw + 0.5, bH = qh + 0.5;
                 ctx.save();
                 ctx.setTransform(1, 0, 0, 1, x, y); ctx.drawImage(tempCanvas, 0, 0, qw, qh, 0, 0, bW, bH);
                 ctx.setTransform(-1, 0, 0, 1, x + w, y); ctx.drawImage(tempCanvas, 0, 0, qw, qh, 0, 0, bW, bH);
@@ -218,18 +200,10 @@
 
     function setEffect(e) { activeEffect = e; updateUI(); }
     function clearEffect() { activeEffect = null; updateUI(); }
-    function updateUI() {
-        document.querySelectorAll('.effect-btn').forEach(b => b.classList.toggle('active-effect', b.id === `effect${activeEffect}`));
-    }
-    function downloadImage() {
-        const link = document.createElement('a');
-        link.download = `kaleidoscope-${Date.now()}.png`;
-        link.href = canvas.toDataURL();
-        link.click();
-    }
+    function updateUI() { document.querySelectorAll('.effect-btn').forEach(b => b.classList.toggle('active', b.id === `effect${activeEffect}`)); }
+    function downloadImage() { const link = document.createElement('a'); link.download = `quad-sym-${Date.now()}.png`; link.href = canvas.toDataURL(); link.click(); }
 
-    startBtn.onclick = startWebcam;
-    stopBtn.onclick = stopWebcam;
+    startBtn.onclick = startWebcam; stopBtn.onclick = stopWebcam;
   </script>
 </body>
 </html>
