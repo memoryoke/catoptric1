@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Quadratic Symmetry - Multi-Cam</title>
+  <title>Quadratic Symmetry - High Performance</title>
   <style>
     :root { --accent: #0088ff; --bg: #0a0a0a; --panel: #1a1a1a; }
     body { 
@@ -11,76 +11,58 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       display: flex; flex-direction: column; align-items: center; min-height: 100vh; overflow-y: auto;
     }
-
     #app { width: 100%; max-width: 500px; display: flex; flex-direction: column; align-items: center; padding-bottom: 40px; }
-    #viewer { width: 100%; aspect-ratio: 1/1; background: #000; display: flex; align-items: center; justify-content: center; position: sticky; top: 0; z-index: 5; }
-    canvas { width: 100%; height: 100%; image-rendering: pixelated; object-fit: contain; }
-
-    #controls { 
-      width: 100%; background: var(--panel); border-top: 1px solid #333;
-      display: flex; flex-direction: column; gap: 10px; padding: 15px; box-sizing: border-box;
-    }
-
-    .scroll-row { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 5px; -webkit-overflow-scrolling: touch; }
-    .scroll-row::-webkit-scrollbar { display: none; }
-
-    .btn { 
-      background: #333; border: 1px solid #444; color: #fff; padding: 10px 14px; 
-      border-radius: 8px; font-size: 13px; font-weight: 600; white-space: nowrap; 
-    }
+    #viewer { width: 100%; aspect-ratio: 1/1; background: #000; position: sticky; top: 0; z-index: 5; }
+    canvas { width: 100%; height: 100%; display: block; }
+    #controls { width: 100%; background: var(--panel); border-top: 1px solid #333; display: flex; flex-direction: column; gap: 10px; padding: 15px; box-sizing: border-box; }
+    .btn { background: #333; border: 1px solid #444; color: #fff; padding: 10px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; white-space: nowrap; }
     .btn.active { background: var(--accent); border-color: #55aaff; }
-    .btn-primary { background: var(--accent); border: none; flex: 1; }
     .btn-row { display: flex; gap: 8px; width: 100%; margin-bottom: 5px; }
-
     .control-group { background: #222; padding: 10px; border-radius: 10px; display: flex; flex-direction: column; gap: 8px; }
     .slider-row { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #aaa; }
     .slider-row label { min-width: 70px; text-transform: uppercase; }
     input[type="range"] { flex: 1; accent-color: var(--accent); }
     .val-dis { min-width: 35px; text-align: right; color: #00ffcc; font-family: monospace; }
+    .scroll-row { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 5px; }
+    #videoFeed { display: none; }
   </style>
 </head>
 <body>
-  <video id="videoFeed" playsinline autoplay muted style="display:none"></video>
-  
+  <video id="videoFeed" playsinline autoplay muted></video>
   <div id="app">
     <div id="viewer"><canvas id="canvas"></canvas></div>
-
     <div id="controls">
       <div class="btn-row">
-        <button id="startBtn" class="btn btn-primary">START CAMERA</button>
-        <button id="switchBtn" class="btn" style="display: none;">SWITCH CAM</button>
-        <button id="stopBtn" class="btn" style="display: none; background: #800; border:none;">STOP</button>
+        <button id="startBtn" class="btn" style="flex:1; background:var(--accent)">START</button>
+        <button id="switchBtn" class="btn" style="display:none">SWITCH CAM</button>
+        <button id="stopBtn" class="btn" style="display:none; background:#800">STOP</button>
       </div>
-
       <div class="control-group">
         <div class="slider-row">
             <label>Grid Mode</label>
-            <select id="gridMode" class="btn" style="padding: 2px 8px; font-size: 11px;">
-                <option value="auto">AUTO (LUMA)</option>
+            <select id="gridMode" class="btn" style="padding:2px 8px; font-size:11px;">
+                <option value="auto">AUTO</option>
                 <option value="manual">MANUAL</option>
             </select>
-            <input type="range" id="gridSlider" min="1" max="100" value="10">
+            <input type="range" id="gridSlider" min="1" max="60" value="10">
             <span id="gridSizeDisplay" class="val-dis">10x10</span>
         </div>
         <div class="slider-row">
-            <label>Color Mode</label>
-            <button id="colorToggle" class="btn" style="padding: 2px 10px; font-size: 11px;">COLOR</button>
+            <label>Color</label>
+            <button id="colorToggle" class="btn" style="padding:2px 10px; font-size:11px;">COLOR</button>
         </div>
       </div>
-
       <div class="control-group">
-        <div class="slider-row"><label>Brightness</label><input type="range" id="brightRange" min="0" max="200" value="100"><span id="brightVal" class="val-dis">100%</span></div>
-        <div class="slider-row"><label>Contrast</label><input type="range" id="contrastRange" min="0" max="200" value="100"><span id="contrastVal" class="val-dis">100%</span></div>
-        <div class="slider-row"><label>Saturation</label><input type="range" id="saturateRange" min="0" max="200" value="100"><span id="saturateVal" class="val-dis">100%</span></div>
+        <div class="slider-row"><label>Brightness</label><input type="range" id="brightRange" min="0" max="200" value="100"><span class="val-dis" id="bVal">100%</span></div>
+        <div class="slider-row"><label>Contrast</label><input type="range" id="contrastRange" min="0" max="200" value="100"><span class="val-dis" id="cVal">100%</span></div>
       </div>
-
       <div class="scroll-row">
-          <button id="effectA1" class="btn effect-btn" onclick="setEffect('A1')">A1</button>
-          <button id="effectA2" class="btn effect-btn" onclick="setEffect('A2')">A2</button>
-          <button id="effectB1" class="btn effect-btn" onclick="setEffect('B1')">B1</button>
-          <button id="effectB2" class="btn effect-btn" onclick="setEffect('B2')">B2</button>
+          <button class="btn eff-btn" onclick="setEffect('A1')">A1</button>
+          <button class="btn eff-btn" onclick="setEffect('A2')">A2</button>
+          <button class="btn eff-btn" onclick="setEffect('B1')">B1</button>
+          <button class="btn eff-btn" onclick="setEffect('B2')">B2</button>
           <button class="btn" onclick="clearEffect()">ORIGINAL</button>
-          <button class="btn" onclick="downloadImage()">SAVE PNG</button>
+          <button class="btn" onclick="downloadImage()">SAVE</button>
       </div>
     </div>
   </div>
@@ -89,132 +71,122 @@
     const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d', { alpha: false });
     const video = document.getElementById('videoFeed'), startBtn = document.getElementById('startBtn'), stopBtn = document.getElementById('stopBtn'), switchBtn = document.getElementById('switchBtn');
     const gridSlider = document.getElementById('gridSlider'), gridMode = document.getElementById('gridMode'), gridSizeDisplay = document.getElementById('gridSizeDisplay'), colorToggle = document.getElementById('colorToggle');
-    const bSlider = document.getElementById('brightRange'), cSlider = document.getElementById('contrastRange'), sSlider = document.getElementById('saturateRange');
+    const bS = document.getElementById('brightRange'), cS = document.getElementById('contrastRange');
     
-    const offCanvas = document.createElement('canvas'), offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
-    const tempCanvas = document.createElement('canvas'), tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
+    // Intermediate canvas for Luma analysis and filter application
+    const buffer = document.createElement('canvas'), bCtx = buffer.getContext('2d', { willReadFrequently: true });
 
     let stream = null, cols = 10, rows = 10, activeEffect = null, isRunning = false, isBW = false;
     let videoDevices = [], currentDeviceIndex = 0;
 
     colorToggle.onclick = () => { isBW = !isBW; colorToggle.textContent = isBW ? "B&W" : "COLOR"; colorToggle.classList.toggle('active', isBW); };
-    gridSlider.oninput = () => { if (gridMode.value === 'manual') { cols = rows = parseInt(gridSlider.value); gridSizeDisplay.textContent = `${cols}x${rows}`; }};
-
+    
     async function getCameras() {
         const devices = await navigator.mediaDevices.enumerateDevices();
-        videoDevices = devices.filter(device => device.kind === 'videoinput');
+        videoDevices = devices.filter(d => d.kind === 'videoinput');
         if (videoDevices.length > 1) switchBtn.style.display = 'block';
     }
 
-    async function startWebcam(deviceId = null) {
+    async function startWebcam(id = null) {
         if (stream) stream.getTracks().forEach(t => t.stop());
-        const constraints = {
-            video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'environment' },
-            width: { ideal: 720 }, height: { ideal: 720 }
-        };
+        const constraints = { video: id ? { deviceId: { exact: id } } : { facingMode: 'environment' } };
         try {
             stream = await navigator.mediaDevices.getUserMedia(constraints);
             video.srcObject = stream;
             video.onloadeddata = () => {
                 video.play();
-                const size = Math.min(video.videoWidth, video.videoHeight);
-                canvas.width = canvas.height = offCanvas.width = offCanvas.height = size;
-                isRunning = true; 
-                startBtn.style.display = 'none'; 
-                stopBtn.style.display = 'block';
-                if (!deviceId) getCameras(); // Initialize list on first run
+                const s = Math.min(video.videoWidth, video.videoHeight);
+                canvas.width = canvas.height = buffer.width = buffer.height = 640; // Resolution Cap for speed
+                isRunning = true; startBtn.style.display = 'none'; stopBtn.style.display = 'block';
+                if (!id) getCameras();
                 requestAnimationFrame(loop);
             };
-        } catch (err) { alert("Camera Error: " + err.message); }
-    }
-
-    switchBtn.onclick = () => {
-        if (videoDevices.length === 0) return;
-        currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
-        startWebcam(videoDevices[currentDeviceIndex].deviceId);
-    };
-
-    function stopWebcam() { 
-        isRunning = false; 
-        if (stream) stream.getTracks().forEach(t => t.stop()); 
-        startBtn.style.display = 'block'; 
-        stopBtn.style.display = 'none'; 
-        switchBtn.style.display = 'none';
+        } catch (e) { alert(e); }
     }
 
     function loop() {
         if (!isRunning) return;
         if (video.readyState === video.HAVE_ENOUGH_DATA) {
-            const size = canvas.width;
-            const cropX = (video.videoWidth - size) / 2, cropY = (video.videoHeight - size) / 2;
-            let filterStr = `brightness(${bSlider.value}%) contrast(${cSlider.value}%) saturate(${isBW ? 0 : sSlider.value}%)`;
-            
-            offCtx.filter = filterStr;
-            offCtx.drawImage(video, cropX, cropY, size, size, 0, 0, size, size);
-            
-            document.getElementById('brightVal').textContent = bSlider.value + '%';
-            document.getElementById('contrastVal').textContent = cSlider.value + '%';
-            document.getElementById('saturateVal').textContent = sSlider.value + '%';
+            const s = canvas.width;
+            const vW = video.videoWidth, vH = video.videoHeight;
+            const cropS = Math.min(vW, vH);
+            const cX = (vW - cropS)/2, cY = (vH - cropS)/2;
 
-            const imgData = offCtx.getImageData(0, 0, size, size);
+            // 1. Draw video to buffer with CSS Filters (Very Fast)
+            bCtx.filter = `brightness(${bS.value}%) contrast(${cS.value}%) saturate(${isBW?0:100}%)`;
+            bCtx.drawImage(video, cX, cY, cropS, cropS, 0, 0, s, s);
 
+            // 2. Auto Grid Logic (Low resolution sample)
             if (gridMode.value === 'auto') {
-                let luma = 0, d = imgData.data;
-                for (let i = 0; i < d.length; i += 1000) luma += (d[i] + d[i+1] + d[i+2]) / 3;
-                cols = rows = Math.max(1, Math.min(100, Math.round((luma / (d.length/1000)) / 2.55)));
+                const data = bCtx.getImageData(0,0,s,s).data;
+                let luma = 0;
+                for(let i=0; i<data.length; i+=2000) luma += (data[i]+data[i+1]+data[i+2])/3;
+                cols = rows = Math.max(1, Math.min(60, Math.round((luma/(data.length/2000))/4.25)));
                 gridSizeDisplay.textContent = `${cols}x${rows}`;
                 gridSlider.value = cols;
+            } else {
+                cols = rows = parseInt(gridSlider.value);
+                gridSizeDisplay.textContent = `${cols}x${rows}`;
             }
 
-            if (activeEffect) renderKaleidoscope(imgData);
-            else { ctx.filter = filterStr; ctx.drawImage(offCanvas, 0, 0); }
+            // 3. Render Grid
+            ctx.clearRect(0,0,s,s);
+            if (!activeEffect) {
+                ctx.drawImage(buffer, 0, 0);
+            } else {
+                renderFast(s);
+            }
         }
         requestAnimationFrame(loop);
     }
 
-    function renderKaleidoscope(source) {
-        const size = canvas.width, data = source.data;
-        ctx.imageSmoothingEnabled = false;
+    function renderFast(size) {
+        const cw = size / cols, ch = size / rows;
+        const qw = cw / 2, qh = ch / 2;
+        const bleed = 0.5; // High-performance gap fix
+
         for (let r = 0; r < rows; r++) {
             for (let c = 0; c < cols; c++) {
-                const x = Math.floor(c * size / cols), y = Math.floor(r * size / rows);
-                const w = Math.floor((c + 1) * size / cols) - x, h = Math.floor((r + 1) * size / rows) - y;
-                const qw = Math.floor(w / 2), qh = Math.floor(h / 2);
-                if (qw <= 0 || qh <= 0) continue;
-
+                const x = c * cw, y = r * ch;
+                
+                // Determine Source Quadrant Offset
                 let sx = x, sy = y;
                 if (activeEffect === 'A2') sx += qw;
                 if (activeEffect === 'B1') sy += qh;
                 if (activeEffect === 'B2') { sx += qw; sy += qh; }
 
-                tempCanvas.width = qw; tempCanvas.height = qh;
-                const tImg = tempCtx.createImageData(qw, qh), tD = tImg.data;
-                for (let py = 0; py < qh; py++) {
-                    for (let px = 0; px < qw; px++) {
-                        const sIdx = ((sy + py) * source.width + (sx + px)) * 4;
-                        const tIdx = (py * qw + px) * 4;
-                        tD[tIdx] = data[sIdx]; tD[tIdx+1] = data[sIdx+1]; tD[tIdx+2] = data[sIdx+2]; tD[tIdx+3] = 255;
-                    }
-                }
-                tempCtx.putImageData(tImg, 0, 0);
-                const bW = qw + 0.5, bH = qh + 0.5;
                 ctx.save();
-                ctx.setTransform(1, 0, 0, 1, x, y); ctx.drawImage(tempCanvas, 0, 0, qw, qh, 0, 0, bW, bH);
-                ctx.setTransform(-1, 0, 0, 1, x + w, y); ctx.drawImage(tempCanvas, 0, 0, qw, qh, 0, 0, bW, bH);
-                ctx.setTransform(1, 0, 0, -1, x, y + h); ctx.drawImage(tempCanvas, 0, 0, qw, qh, 0, 0, bW, bH);
-                ctx.setTransform(-1, 0, 0, -1, x + w, y + h); ctx.drawImage(tempCanvas, 0, 0, qw, qh, 0, 0, bW, bH);
+                ctx.translate(x, y);
+
+                // TL
+                ctx.drawImage(buffer, sx, sy, qw, qh, 0, 0, qw + bleed, qh + bleed);
+                // TR
+                ctx.save();
+                ctx.translate(cw, 0); ctx.scale(-1, 1);
+                ctx.drawImage(buffer, sx, sy, qw, qh, 0, 0, qw + bleed, qh + bleed);
+                ctx.restore();
+                // BL
+                ctx.save();
+                ctx.translate(0, ch); ctx.scale(1, -1);
+                ctx.drawImage(buffer, sx, sy, qw, qh, 0, 0, qw + bleed, qh + bleed);
+                ctx.restore();
+                // BR
+                ctx.save();
+                ctx.translate(cw, ch); ctx.scale(-1, -1);
+                ctx.drawImage(buffer, sx, sy, qw, qh, 0, 0, qw + bleed, qh + bleed);
+                ctx.restore();
+
                 ctx.restore();
             }
         }
     }
 
-    function setEffect(e) { activeEffect = e; updateUI(); }
-    function clearEffect() { activeEffect = null; updateUI(); }
-    function updateUI() { document.querySelectorAll('.effect-btn').forEach(b => b.classList.toggle('active', b.id === `effect${activeEffect}`)); }
-    function downloadImage() { const link = document.createElement('a'); link.download = `quad-sym-${Date.now()}.png`; link.href = canvas.toDataURL(); link.click(); }
-
-    startBtn.onclick = () => startWebcam(); 
-    stopBtn.onclick = stopWebcam;
+    function setEffect(e) { activeEffect = e; document.querySelectorAll('.eff-btn').forEach(b => b.classList.toggle('active', b.innerText === e)); }
+    function clearEffect() { activeEffect = null; document.querySelectorAll('.eff-btn').forEach(b => b.classList.remove('active')); }
+    function downloadImage() { const l = document.createElement('a'); l.download = 'art.png'; l.href = canvas.toDataURL(); l.click(); }
+    startBtn.onclick = () => startWebcam();
+    stopBtn.onclick = () => { isRunning = false; stream.getTracks().forEach(t => t.stop()); startBtn.style.display = 'block'; stopBtn.style.display = 'none'; };
+    switchBtn.onclick = () => { currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length; startWebcam(videoDevices[currentDeviceIndex].deviceId); };
   </script>
 </body>
 </html>
