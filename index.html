@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Quadratic Symmetry</title>
+  <title>Quadratic Symmetry - Multi-Cam</title>
   <style>
     :root { --accent: #0088ff; --bg: #0a0a0a; --panel: #1a1a1a; }
     body { 
@@ -12,13 +12,10 @@
       display: flex; flex-direction: column; align-items: center; min-height: 100vh; overflow-y: auto;
     }
 
-    /* Layout Container */
     #app { width: 100%; max-width: 500px; display: flex; flex-direction: column; align-items: center; padding-bottom: 40px; }
-
     #viewer { width: 100%; aspect-ratio: 1/1; background: #000; display: flex; align-items: center; justify-content: center; position: sticky; top: 0; z-index: 5; }
     canvas { width: 100%; height: 100%; image-rendering: pixelated; object-fit: contain; }
 
-    /* Controls Container - Now positioned below canvas */
     #controls { 
       width: 100%; background: var(--panel); border-top: 1px solid #333;
       display: flex; flex-direction: column; gap: 10px; padding: 15px; box-sizing: border-box;
@@ -32,7 +29,8 @@
       border-radius: 8px; font-size: 13px; font-weight: 600; white-space: nowrap; 
     }
     .btn.active { background: var(--accent); border-color: #55aaff; }
-    .btn-primary { background: var(--accent); border: none; width: 100%; margin-bottom: 5px; }
+    .btn-primary { background: var(--accent); border: none; flex: 1; }
+    .btn-row { display: flex; gap: 8px; width: 100%; margin-bottom: 5px; }
 
     .control-group { background: #222; padding: 10px; border-radius: 10px; display: flex; flex-direction: column; gap: 8px; }
     .slider-row { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #aaa; }
@@ -48,8 +46,11 @@
     <div id="viewer"><canvas id="canvas"></canvas></div>
 
     <div id="controls">
-      <button id="startBtn" class="btn btn-primary">START CAMERA</button>
-      <button id="stopBtn" class="btn" style="display: none; background: #800; border:none; width:100%;">STOP</button>
+      <div class="btn-row">
+        <button id="startBtn" class="btn btn-primary">START CAMERA</button>
+        <button id="switchBtn" class="btn" style="display: none;">SWITCH CAM</button>
+        <button id="stopBtn" class="btn" style="display: none; background: #800; border:none;">STOP</button>
+      </div>
 
       <div class="control-group">
         <div class="slider-row">
@@ -68,21 +69,9 @@
       </div>
 
       <div class="control-group">
-        <div class="slider-row">
-            <label>Brightness</label>
-            <input type="range" id="brightRange" min="0" max="200" value="100">
-            <span id="brightVal" class="val-dis">100%</span>
-        </div>
-        <div class="slider-row">
-            <label>Contrast</label>
-            <input type="range" id="contrastRange" min="0" max="200" value="100">
-            <span id="contrastVal" class="val-dis">100%</span>
-        </div>
-        <div class="slider-row">
-            <label>Saturation</label>
-            <input type="range" id="saturateRange" min="0" max="200" value="100">
-            <span id="saturateVal" class="val-dis">100%</span>
-        </div>
+        <div class="slider-row"><label>Brightness</label><input type="range" id="brightRange" min="0" max="200" value="100"><span id="brightVal" class="val-dis">100%</span></div>
+        <div class="slider-row"><label>Contrast</label><input type="range" id="contrastRange" min="0" max="200" value="100"><span id="contrastVal" class="val-dis">100%</span></div>
+        <div class="slider-row"><label>Saturation</label><input type="range" id="saturateRange" min="0" max="200" value="100"><span id="saturateVal" class="val-dis">100%</span></div>
       </div>
 
       <div class="scroll-row">
@@ -98,50 +87,71 @@
 
   <script>
     const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d', { alpha: false });
-    const video = document.getElementById('videoFeed'), startBtn = document.getElementById('startBtn'), stopBtn = document.getElementById('stopBtn');
-    const gridSlider = document.getElementById('gridSlider'), gridMode = document.getElementById('gridMode'), gridSizeDisplay = document.getElementById('gridSizeDisplay');
-    const colorToggle = document.getElementById('colorToggle');
-    
-    // Sliders
+    const video = document.getElementById('videoFeed'), startBtn = document.getElementById('startBtn'), stopBtn = document.getElementById('stopBtn'), switchBtn = document.getElementById('switchBtn');
+    const gridSlider = document.getElementById('gridSlider'), gridMode = document.getElementById('gridMode'), gridSizeDisplay = document.getElementById('gridSizeDisplay'), colorToggle = document.getElementById('colorToggle');
     const bSlider = document.getElementById('brightRange'), cSlider = document.getElementById('contrastRange'), sSlider = document.getElementById('saturateRange');
     
     const offCanvas = document.createElement('canvas'), offCtx = offCanvas.getContext('2d', { willReadFrequently: true });
     const tempCanvas = document.createElement('canvas'), tempCtx = tempCanvas.getContext('2d', { willReadFrequently: true });
 
     let stream = null, cols = 10, rows = 10, activeEffect = null, isRunning = false, isBW = false;
+    let videoDevices = [], currentDeviceIndex = 0;
 
     colorToggle.onclick = () => { isBW = !isBW; colorToggle.textContent = isBW ? "B&W" : "COLOR"; colorToggle.classList.toggle('active', isBW); };
-
     gridSlider.oninput = () => { if (gridMode.value === 'manual') { cols = rows = parseInt(gridSlider.value); gridSizeDisplay.textContent = `${cols}x${rows}`; }};
 
-    async function startWebcam() {
+    async function getCameras() {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        videoDevices = devices.filter(device => device.kind === 'videoinput');
+        if (videoDevices.length > 1) switchBtn.style.display = 'block';
+    }
+
+    async function startWebcam(deviceId = null) {
+        if (stream) stream.getTracks().forEach(t => t.stop());
+        const constraints = {
+            video: deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'environment' },
+            width: { ideal: 720 }, height: { ideal: 720 }
+        };
         try {
-            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment', width: 720, height: 720 } });
+            stream = await navigator.mediaDevices.getUserMedia(constraints);
             video.srcObject = stream;
             video.onloadeddata = () => {
                 video.play();
                 const size = Math.min(video.videoWidth, video.videoHeight);
                 canvas.width = canvas.height = offCanvas.width = offCanvas.height = size;
-                isRunning = true; startBtn.style.display = 'none'; stopBtn.style.display = 'block';
+                isRunning = true; 
+                startBtn.style.display = 'none'; 
+                stopBtn.style.display = 'block';
+                if (!deviceId) getCameras(); // Initialize list on first run
                 requestAnimationFrame(loop);
             };
         } catch (err) { alert("Camera Error: " + err.message); }
     }
 
-    function stopWebcam() { isRunning = false; if (stream) stream.getTracks().forEach(t => t.stop()); startBtn.style.display = 'block'; stopBtn.style.display = 'none'; }
+    switchBtn.onclick = () => {
+        if (videoDevices.length === 0) return;
+        currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
+        startWebcam(videoDevices[currentDeviceIndex].deviceId);
+    };
+
+    function stopWebcam() { 
+        isRunning = false; 
+        if (stream) stream.getTracks().forEach(t => t.stop()); 
+        startBtn.style.display = 'block'; 
+        stopBtn.style.display = 'none'; 
+        switchBtn.style.display = 'none';
+    }
 
     function loop() {
         if (!isRunning) return;
         if (video.readyState === video.HAVE_ENOUGH_DATA) {
             const size = canvas.width;
             const cropX = (video.videoWidth - size) / 2, cropY = (video.videoHeight - size) / 2;
-
-            // Apply filters to the drawing context
             let filterStr = `brightness(${bSlider.value}%) contrast(${cSlider.value}%) saturate(${isBW ? 0 : sSlider.value}%)`;
+            
             offCtx.filter = filterStr;
             offCtx.drawImage(video, cropX, cropY, size, size, 0, 0, size, size);
             
-            // Update labels
             document.getElementById('brightVal').textContent = bSlider.value + '%';
             document.getElementById('contrastVal').textContent = cSlider.value + '%';
             document.getElementById('saturateVal').textContent = sSlider.value + '%';
@@ -203,7 +213,8 @@
     function updateUI() { document.querySelectorAll('.effect-btn').forEach(b => b.classList.toggle('active', b.id === `effect${activeEffect}`)); }
     function downloadImage() { const link = document.createElement('a'); link.download = `quad-sym-${Date.now()}.png`; link.href = canvas.toDataURL(); link.click(); }
 
-    startBtn.onclick = startWebcam; stopBtn.onclick = stopWebcam;
+    startBtn.onclick = () => startWebcam(); 
+    stopBtn.onclick = stopWebcam;
   </script>
 </body>
 </html>
