@@ -12,117 +12,143 @@ body {
   color: #eee;
   font-family: sans-serif;
   display: flex;
+  justify-content: center;
+}
+
+#app {
+  width: 100%;
+  max-width: 100vmin;
+  display: flex;
   flex-direction: column;
   align-items: center;
-  overflow: hidden;
 }
 
-#controls {
-  background: #222;
-  padding: 1rem;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  align-items: center;
-  gap: 0.8rem 1rem;
-  position: fixed;
-  top: 0;
-  width: 100%;
-  box-sizing: border-box;
-  z-index: 10;
-  border-bottom: 1px solid #444;
-}
+/* ---------- CANVAS ---------- */
 
 canvas {
-  margin-top: 110px;
-  image-rendering: pixelated;
-  max-width: min(95vw, 80vh);
-  max-height: min(80vh, 95vw);
+  width: 100vw;
+  max-width: 100vmin;
+  height: auto;
   aspect-ratio: 1 / 1;
   display: block;
   background-color: #333;
+  image-rendering: pixelated;
+}
+
+/* ---------- CONTROLS ---------- */
+
+#controls {
+  width: 100%;
+  max-width: 600px;
+  padding: 0.75rem;
+  background: #1a1a1a;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+  box-sizing: border-box;
+}
+
+.button {
+  background: #444;
+  border: 1px solid #555;
+  color: #fff;
+  padding: 0.5rem;
+  cursor: pointer;
+  border-radius: 6px;
+  font-size: 0.8rem;
+}
+
+.button.active-effect {
+  background: #6a6a6a;
+}
+
+.slider-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.75rem;
+}
+
+input[type="range"] {
+  width: 100%;
+}
+
+.span-2 { grid-column: span 2; }
+.span-4 { grid-column: span 4; }
+
+#gridSizeDisplay {
+  grid-column: span 2;
+  font-family: monospace;
+  background: #333;
+  padding: 0.4rem;
+  border-radius: 4px;
+  text-align: center;
 }
 
 #videoFeed { display:none; }
 
-.button {
-  background:#444;
-  border:1px solid #555;
-  color:#fff;
-  padding:0.5rem 1rem;
-  cursor:pointer;
-  border-radius:4px;
-}
-
-.button.active-effect {
-  background:#6a6a6a;
-}
-
-.slider-wrap {
-  display:flex;
-  align-items:center;
-  gap:0.4rem;
-  font-size:0.8rem;
-}
-
-input[type="range"] { width:90px; }
-
-#gridSizeDisplay {
-  padding:0.5rem 1rem;
-  background:#333;
-  border-radius:4px;
-  font-family:monospace;
+@media (min-width: 700px) {
+  #controls {
+    border-radius: 12px;
+    margin-bottom: 1rem;
+  }
 }
 </style>
 </head>
 
 <body>
 
-<video id="videoFeed" playsinline autoplay muted></video>
+<div id="app">
 
-<div id="controls">
-  <button id="startWebcamButton" class="button">Start Webcam</button>
-  <button id="stopWebcamButton" class="button">Stop Webcam</button>
-  <button id="freezeButton" class="button">Freeze</button>
+  <canvas id="canvas"></canvas>
 
-  <span id="gridSizeDisplay">Grid: 10×10</span>
+  <div id="controls">
 
-  <div class="slider-wrap">
-    Grid
-    <input id="gridSlider" type="range" min="1" max="30" step="1" value="10">
+    <!-- ROW 1: CAMERA -->
+    <button id="startWebcamButton" class="button">Start</button>
+    <button id="stopWebcamButton" class="button">Stop</button>
+    <button id="freezeButton" class="button">Freeze</button>
+    <label class="slider-wrap">
+      <input id="autoGridToggle" type="checkbox"> Auto
+    </label>
+
+    <!-- ROW 2: GRID -->
+    <div id="gridSizeDisplay">Grid: 10×10</div>
+    <div class="slider-wrap span-2">
+      Grid <input id="gridSlider" type="range" min="1" max="30" value="10">
+    </div>
+
+    <!-- ROW 3: GEOMETRY -->
+    <div class="slider-wrap">
+      W <input id="cellWidthSlider" type="range" min="0.25" max="3" step="0.05" value="1">
+    </div>
+    <div class="slider-wrap">
+      H <input id="cellHeightSlider" type="range" min="0.25" max="3" step="0.05" value="1">
+    </div>
+    <label class="slider-wrap span-2">
+      <input id="lockRatio" type="checkbox" checked> Lock
+    </label>
+
+    <!-- ROW 4: IMAGE -->
+    <div class="slider-wrap span-4">
+      Saturation
+      <input id="saturationSlider" type="range" min="0" max="200" value="100">
+    </div>
+
+    <!-- ROW 5: MODES -->
+    <button id="effectA1" class="button effect-button">Agnes</button>
+    <button id="effectA2" class="button effect-button">Bridget</button>
+    <button id="effectB1" class="button effect-button">Chuck</button>
+    <button id="effectB2" class="button effect-button">Donald</button>
+
+    <!-- ROW 6: OUTPUT -->
+    <button id="clearEffectButton" class="button span-2">Original</button>
+    <button id="downloadButton" class="button span-2">download image</button>
+
   </div>
-
-  <label class="slider-wrap">
-    <input id="autoGridToggle" type="checkbox"> Auto
-  </label>
-
-  <div class="slider-wrap">
-    Sat
-    <input id="saturationSlider" type="range" min="0" max="200" value="100">
-  </div>
-
-  <div class="slider-wrap">
-    W <input id="cellWidthSlider" type="range" min="0.25" max="3" step="0.05" value="1">
-  </div>
-
-  <div class="slider-wrap">
-    H <input id="cellHeightSlider" type="range" min="0.25" max="3" step="0.05" value="1">
-  </div>
-
-  <label class="slider-wrap">
-    <input id="lockRatio" type="checkbox" checked> Lock
-  </label>
-
-  <button id="effectA1" class="button effect-button">Agnes</button>
-  <button id="effectA2" class="button effect-button">Bridget</button>
-  <button id="effectB1" class="button effect-button">Chuck</button>
-  <button id="effectB2" class="button effect-button">Donald</button>
-
-  <button class="button" id="clearEffectButton">Original</button>
-  <button class="button" id="downloadButton">download image</button>
 </div>
 
-<canvas id="canvas"></canvas>
+<video id="videoFeed" playsinline autoplay muted></video>
 
 <script>
 const canvas = document.getElementById('canvas');
@@ -147,25 +173,47 @@ let cellWidthScale=1;
 let cellHeightScale=1;
 let saturation=100;
 
+/* ---------- UI ---------- */
+
 const gridSlider=document.getElementById('gridSlider');
 const gridDisplay=document.getElementById('gridSizeDisplay');
 const autoGridToggle=document.getElementById('autoGridToggle');
 const saturationSlider=document.getElementById('saturationSlider');
+const wSlider=document.getElementById('cellWidthSlider');
+const hSlider=document.getElementById('cellHeightSlider');
+const lockRatio=document.getElementById('lockRatio');
 
 gridSlider.oninput=()=>{
   if(!autoGrid){
     cols=rows=gridSlider.value;
-    updateGridDisplay();
+    updateGrid();
   }
 };
 
 autoGridToggle.onchange=()=>autoGrid=autoGridToggle.checked;
-
 saturationSlider.oninput=()=>saturation=saturationSlider.value;
 
-function updateGridDisplay(){
+wSlider.oninput=()=>{
+  cellWidthScale=parseFloat(wSlider.value);
+  if(lockRatio.checked){
+    cellHeightScale=cellWidthScale;
+    hSlider.value=wSlider.value;
+  }
+};
+
+hSlider.oninput=()=>{
+  cellHeightScale=parseFloat(hSlider.value);
+  if(lockRatio.checked){
+    cellWidthScale=cellHeightScale;
+    wSlider.value=hSlider.value;
+  }
+};
+
+function updateGrid(){
   gridDisplay.textContent=`Grid: ${cols}×${rows}`;
 }
+
+/* ---------- EFFECTS ---------- */
 
 function setEffect(e){
   currentQuadrantEffect=e;
@@ -174,11 +222,29 @@ function setEffect(e){
   });
 }
 
-document.getElementById('effectA1').onclick=()=>setEffect('A1');
-document.getElementById('effectA2').onclick=()=>setEffect('A2');
-document.getElementById('effectB1').onclick=()=>setEffect('B1');
-document.getElementById('effectB2').onclick=()=>setEffect('B2');
+['A1','A2','B1','B2'].forEach(e=>{
+  document.getElementById(`effect${e}`).onclick=()=>setEffect(e);
+});
+
 document.getElementById('clearEffectButton').onclick=()=>setEffect(null);
+
+/* ---------- CAMERA ---------- */
+
+document.getElementById('startWebcamButton').onclick=async()=>{
+  stream=await navigator.mediaDevices.getUserMedia({video:true});
+  video.srcObject=stream;
+  await video.play();
+
+  const size=Math.min(video.videoWidth,video.videoHeight);
+  canvas.width=canvas.height=size;
+  offscreenCanvas.width=offscreenCanvas.height=size;
+
+  loop();
+};
+
+document.getElementById('stopWebcamButton').onclick=()=>{
+  stream?.getTracks().forEach(t=>t.stop());
+};
 
 document.getElementById('freezeButton').onclick=()=>{
   frozen=!frozen;
@@ -187,19 +253,7 @@ document.getElementById('freezeButton').onclick=()=>{
   }
 };
 
-document.getElementById('startWebcamButton').onclick=async()=>{
-  stream=await navigator.mediaDevices.getUserMedia({video:true});
-  video.srcObject=stream;
-  await video.play();
-  const size=Math.min(video.videoWidth,video.videoHeight);
-  canvas.width=canvas.height=size;
-  offscreenCanvas.width=offscreenCanvas.height=size;
-  loop();
-};
-
-document.getElementById('stopWebcamButton').onclick=()=>{
-  stream?.getTracks().forEach(t=>t.stop());
-};
+/* ---------- MAIN LOOP ---------- */
 
 function loop(){
   if(!stream) return;
@@ -216,7 +270,7 @@ function loop(){
     for(let i=0;i<d.length;i+=4)
       sum+=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
     cols=rows=Math.max(1,Math.min(30,Math.round((sum/(d.length/4))/255*30)));
-    updateGridDisplay();
+    updateGrid();
   }
 
   if(currentQuadrantEffect)
@@ -227,7 +281,8 @@ function loop(){
   requestAnimationFrame(loop);
 }
 
-/* --- processQuadrant LOGIC UNCHANGED --- */
+/* ---------- processQuadrant (UNCHANGED) ---------- */
+
 function processQuadrant(target,setState,sourceImageData){
   ctx.clearRect(0,0,canvas.width,canvas.height);
   ctx.imageSmoothingEnabled=false;
@@ -289,6 +344,8 @@ function processQuadrant(target,setState,sourceImageData){
   }
 }
 
+/* ---------- DOWNLOAD ---------- */
+
 document.getElementById('downloadButton').onclick=()=>{
   const a=document.createElement('a');
   a.download='image.png';
@@ -296,9 +353,10 @@ document.getElementById('downloadButton').onclick=()=>{
   a.click();
 };
 
-// defaults
+/* ---------- DEFAULTS ---------- */
+
 setEffect('A1');
-updateGridDisplay();
+updateGrid();
 </script>
 
 </body>
