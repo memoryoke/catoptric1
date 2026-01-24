@@ -1,192 +1,305 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Quadratic Symmetry - High Performance</title>
-  <style>
-    :root { --accent: #0088ff; --bg: #0a0a0a; --panel: #1a1a1a; }
-    body { 
-      margin: 0; background-color: var(--bg); color: #eee; 
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      display: flex; flex-direction: column; align-items: center; min-height: 100vh; overflow-y: auto;
-    }
-    #app { width: 100%; max-width: 500px; display: flex; flex-direction: column; align-items: center; padding-bottom: 40px; }
-    #viewer { width: 100%; aspect-ratio: 1/1; background: #000; position: sticky; top: 0; z-index: 5; }
-    canvas { width: 100%; height: 100%; display: block; }
-    #controls { width: 100%; background: var(--panel); border-top: 1px solid #333; display: flex; flex-direction: column; gap: 10px; padding: 15px; box-sizing: border-box; }
-    .btn { background: #333; border: 1px solid #444; color: #fff; padding: 10px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; white-space: nowrap; }
-    .btn.active { background: var(--accent); border-color: #55aaff; }
-    .btn-row { display: flex; gap: 8px; width: 100%; margin-bottom: 5px; }
-    .control-group { background: #222; padding: 10px; border-radius: 10px; display: flex; flex-direction: column; gap: 8px; }
-    .slider-row { display: flex; align-items: center; gap: 10px; font-size: 11px; color: #aaa; }
-    .slider-row label { min-width: 70px; text-transform: uppercase; }
-    input[type="range"] { flex: 1; accent-color: var(--accent); }
-    .val-dis { min-width: 35px; text-align: right; color: #00ffcc; font-family: monospace; }
-    .scroll-row { display: flex; overflow-x: auto; gap: 8px; padding-bottom: 5px; }
-    #videoFeed { display: none; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dynamic Quadrant Video Processor</title>
+
+<style>
+body {
+  margin: 0;
+  background-color: #111;
+  color: #eee;
+  font-family: sans-serif;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+}
+
+#controls {
+  background: #222;
+  padding: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: 0.8rem 1rem;
+  position: fixed;
+  top: 0;
+  width: 100%;
+  box-sizing: border-box;
+  z-index: 10;
+  border-bottom: 1px solid #444;
+}
+
+canvas {
+  margin-top: 110px;
+  image-rendering: pixelated;
+  max-width: min(95vw, 80vh);
+  max-height: min(80vh, 95vw);
+  aspect-ratio: 1 / 1;
+  display: block;
+  background-color: #333;
+}
+
+#videoFeed { display:none; }
+
+.button {
+  background:#444;
+  border:1px solid #555;
+  color:#fff;
+  padding:0.5rem 1rem;
+  cursor:pointer;
+  border-radius:4px;
+}
+
+.button.active-effect {
+  background:#6a6a6a;
+}
+
+.slider-wrap {
+  display:flex;
+  align-items:center;
+  gap:0.4rem;
+  font-size:0.8rem;
+}
+
+input[type="range"] { width:90px; }
+
+#gridSizeDisplay {
+  padding:0.5rem 1rem;
+  background:#333;
+  border-radius:4px;
+  font-family:monospace;
+}
+</style>
 </head>
+
 <body>
-  <video id="videoFeed" playsinline autoplay muted></video>
-  <div id="app">
-    <div id="viewer"><canvas id="canvas"></canvas></div>
-    <div id="controls">
-      <div class="btn-row">
-        <button id="startBtn" class="btn" style="flex:1; background:var(--accent)">START</button>
-        <button id="switchBtn" class="btn" style="display:none">SWITCH CAM</button>
-        <button id="stopBtn" class="btn" style="display:none; background:#800">STOP</button>
-      </div>
-      <div class="control-group">
-        <div class="slider-row">
-            <label>Grid Mode</label>
-            <select id="gridMode" class="btn" style="padding:2px 8px; font-size:11px;">
-                <option value="auto">AUTO</option>
-                <option value="manual">MANUAL</option>
-            </select>
-            <input type="range" id="gridSlider" min="1" max="60" value="10">
-            <span id="gridSizeDisplay" class="val-dis">10x10</span>
-        </div>
-        <div class="slider-row">
-            <label>Color</label>
-            <button id="colorToggle" class="btn" style="padding:2px 10px; font-size:11px;">COLOR</button>
-        </div>
-      </div>
-      <div class="control-group">
-        <div class="slider-row"><label>Brightness</label><input type="range" id="brightRange" min="0" max="200" value="100"><span class="val-dis" id="bVal">100%</span></div>
-        <div class="slider-row"><label>Contrast</label><input type="range" id="contrastRange" min="0" max="200" value="100"><span class="val-dis" id="cVal">100%</span></div>
-      </div>
-      <div class="scroll-row">
-          <button class="btn eff-btn" onclick="setEffect('A1')">A1</button>
-          <button class="btn eff-btn" onclick="setEffect('A2')">A2</button>
-          <button class="btn eff-btn" onclick="setEffect('B1')">B1</button>
-          <button class="btn eff-btn" onclick="setEffect('B2')">B2</button>
-          <button class="btn" onclick="clearEffect()">ORIGINAL</button>
-          <button class="btn" onclick="downloadImage()">SAVE</button>
-      </div>
-    </div>
+
+<video id="videoFeed" playsinline autoplay muted></video>
+
+<div id="controls">
+  <button id="startWebcamButton" class="button">Start Webcam</button>
+  <button id="stopWebcamButton" class="button">Stop Webcam</button>
+  <button id="freezeButton" class="button">Freeze</button>
+
+  <span id="gridSizeDisplay">Grid: 10×10</span>
+
+  <div class="slider-wrap">
+    Grid
+    <input id="gridSlider" type="range" min="1" max="30" step="1" value="10">
   </div>
 
-  <script>
-    const canvas = document.getElementById('canvas'), ctx = canvas.getContext('2d', { alpha: false });
-    const video = document.getElementById('videoFeed'), startBtn = document.getElementById('startBtn'), stopBtn = document.getElementById('stopBtn'), switchBtn = document.getElementById('switchBtn');
-    const gridSlider = document.getElementById('gridSlider'), gridMode = document.getElementById('gridMode'), gridSizeDisplay = document.getElementById('gridSizeDisplay'), colorToggle = document.getElementById('colorToggle');
-    const bS = document.getElementById('brightRange'), cS = document.getElementById('contrastRange');
-    
-    // Intermediate canvas for Luma analysis and filter application
-    const buffer = document.createElement('canvas'), bCtx = buffer.getContext('2d', { willReadFrequently: true });
+  <label class="slider-wrap">
+    <input id="autoGridToggle" type="checkbox"> Auto
+  </label>
 
-    let stream = null, cols = 10, rows = 10, activeEffect = null, isRunning = false, isBW = false;
-    let videoDevices = [], currentDeviceIndex = 0;
+  <div class="slider-wrap">
+    Sat
+    <input id="saturationSlider" type="range" min="0" max="200" value="100">
+  </div>
 
-    colorToggle.onclick = () => { isBW = !isBW; colorToggle.textContent = isBW ? "B&W" : "COLOR"; colorToggle.classList.toggle('active', isBW); };
-    
-    async function getCameras() {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        videoDevices = devices.filter(d => d.kind === 'videoinput');
-        if (videoDevices.length > 1) switchBtn.style.display = 'block';
-    }
+  <div class="slider-wrap">
+    W <input id="cellWidthSlider" type="range" min="0.25" max="3" step="0.05" value="1">
+  </div>
 
-    async function startWebcam(id = null) {
-        if (stream) stream.getTracks().forEach(t => t.stop());
-        const constraints = { video: id ? { deviceId: { exact: id } } : { facingMode: 'environment' } };
-        try {
-            stream = await navigator.mediaDevices.getUserMedia(constraints);
-            video.srcObject = stream;
-            video.onloadeddata = () => {
-                video.play();
-                const s = Math.min(video.videoWidth, video.videoHeight);
-                canvas.width = canvas.height = buffer.width = buffer.height = 640; // Resolution Cap for speed
-                isRunning = true; startBtn.style.display = 'none'; stopBtn.style.display = 'block';
-                if (!id) getCameras();
-                requestAnimationFrame(loop);
-            };
-        } catch (e) { alert(e); }
-    }
+  <div class="slider-wrap">
+    H <input id="cellHeightSlider" type="range" min="0.25" max="3" step="0.05" value="1">
+  </div>
 
-    function loop() {
-        if (!isRunning) return;
-        if (video.readyState === video.HAVE_ENOUGH_DATA) {
-            const s = canvas.width;
-            const vW = video.videoWidth, vH = video.videoHeight;
-            const cropS = Math.min(vW, vH);
-            const cX = (vW - cropS)/2, cY = (vH - cropS)/2;
+  <label class="slider-wrap">
+    <input id="lockRatio" type="checkbox" checked> Lock
+  </label>
 
-            // 1. Draw video to buffer with CSS Filters (Very Fast)
-            bCtx.filter = `brightness(${bS.value}%) contrast(${cS.value}%) saturate(${isBW?0:100}%)`;
-            bCtx.drawImage(video, cX, cY, cropS, cropS, 0, 0, s, s);
+  <button id="effectA1" class="button effect-button">Agnes</button>
+  <button id="effectA2" class="button effect-button">Bridget</button>
+  <button id="effectB1" class="button effect-button">Chuck</button>
+  <button id="effectB2" class="button effect-button">Donald</button>
 
-            // 2. Auto Grid Logic (Low resolution sample)
-            if (gridMode.value === 'auto') {
-                const data = bCtx.getImageData(0,0,s,s).data;
-                let luma = 0;
-                for(let i=0; i<data.length; i+=2000) luma += (data[i]+data[i+1]+data[i+2])/3;
-                cols = rows = Math.max(1, Math.min(60, Math.round((luma/(data.length/2000))/4.25)));
-                gridSizeDisplay.textContent = `${cols}x${rows}`;
-                gridSlider.value = cols;
-            } else {
-                cols = rows = parseInt(gridSlider.value);
-                gridSizeDisplay.textContent = `${cols}x${rows}`;
-            }
+  <button class="button" id="clearEffectButton">Original</button>
+  <button class="button" id="downloadButton">download image</button>
+</div>
 
-            // 3. Render Grid
-            ctx.clearRect(0,0,s,s);
-            if (!activeEffect) {
-                ctx.drawImage(buffer, 0, 0);
-            } else {
-                renderFast(s);
-            }
+<canvas id="canvas"></canvas>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d', { willReadFrequently:true });
+const video = document.getElementById('videoFeed');
+
+const offscreenCanvas = document.createElement('canvas');
+const offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently:true });
+
+const tempCanvas = document.createElement('canvas');
+const tempCtx = tempCanvas.getContext('2d', { willReadFrequently:true });
+
+let stream=null;
+let frozenFrame=null;
+let frozen=false;
+
+let cols=10, rows=10;
+let autoGrid=false;
+let currentQuadrantEffect='A1';
+
+let cellWidthScale=1;
+let cellHeightScale=1;
+let saturation=100;
+
+const gridSlider=document.getElementById('gridSlider');
+const gridDisplay=document.getElementById('gridSizeDisplay');
+const autoGridToggle=document.getElementById('autoGridToggle');
+const saturationSlider=document.getElementById('saturationSlider');
+
+gridSlider.oninput=()=>{
+  if(!autoGrid){
+    cols=rows=gridSlider.value;
+    updateGridDisplay();
+  }
+};
+
+autoGridToggle.onchange=()=>autoGrid=autoGridToggle.checked;
+
+saturationSlider.oninput=()=>saturation=saturationSlider.value;
+
+function updateGridDisplay(){
+  gridDisplay.textContent=`Grid: ${cols}×${rows}`;
+}
+
+function setEffect(e){
+  currentQuadrantEffect=e;
+  document.querySelectorAll('.effect-button').forEach(b=>{
+    b.classList.toggle('active-effect', b.id===`effect${e}`);
+  });
+}
+
+document.getElementById('effectA1').onclick=()=>setEffect('A1');
+document.getElementById('effectA2').onclick=()=>setEffect('A2');
+document.getElementById('effectB1').onclick=()=>setEffect('B1');
+document.getElementById('effectB2').onclick=()=>setEffect('B2');
+document.getElementById('clearEffectButton').onclick=()=>setEffect(null);
+
+document.getElementById('freezeButton').onclick=()=>{
+  frozen=!frozen;
+  if(frozen){
+    frozenFrame=offscreenCtx.getImageData(0,0,canvas.width,canvas.height);
+  }
+};
+
+document.getElementById('startWebcamButton').onclick=async()=>{
+  stream=await navigator.mediaDevices.getUserMedia({video:true});
+  video.srcObject=stream;
+  await video.play();
+  const size=Math.min(video.videoWidth,video.videoHeight);
+  canvas.width=canvas.height=size;
+  offscreenCanvas.width=offscreenCanvas.height=size;
+  loop();
+};
+
+document.getElementById('stopWebcamButton').onclick=()=>{
+  stream?.getTracks().forEach(t=>t.stop());
+};
+
+function loop(){
+  if(!stream) return;
+
+  if(!frozen){
+    offscreenCtx.filter=`saturate(${saturation}%)`;
+    offscreenCtx.drawImage(video,0,0,canvas.width,canvas.height);
+    frozenFrame=offscreenCtx.getImageData(0,0,canvas.width,canvas.height);
+  }
+
+  if(autoGrid){
+    let sum=0;
+    const d=frozenFrame.data;
+    for(let i=0;i<d.length;i+=4)
+      sum+=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+    cols=rows=Math.max(1,Math.min(30,Math.round((sum/(d.length/4))/255*30)));
+    updateGridDisplay();
+  }
+
+  if(currentQuadrantEffect)
+    processQuadrant(currentQuadrantEffect,false,frozenFrame);
+  else
+    ctx.putImageData(frozenFrame,0,0);
+
+  requestAnimationFrame(loop);
+}
+
+/* --- processQuadrant LOGIC UNCHANGED --- */
+function processQuadrant(target,setState,sourceImageData){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.imageSmoothingEnabled=false;
+  tempCtx.imageSmoothingEnabled=false;
+
+  const sw=sourceImageData.width;
+  const sh=sourceImageData.height;
+  const data=sourceImageData.data;
+
+  const baseW=canvas.width/cols;
+  const baseH=canvas.height/rows;
+
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      const x=Math.floor(c*baseW);
+      const y=Math.floor(r*baseH);
+      const w=Math.floor(baseW*cellWidthScale);
+      const h=Math.floor(baseH*cellHeightScale);
+      const qW=Math.floor(w/2);
+      const qH=Math.floor(h/2);
+      if(qW<=0||qH<=0) continue;
+
+      let sx=x, sy=y;
+      if(target==='A2') sx+=qW;
+      if(target==='B1') sy+=qH;
+      if(target==='B2'){sx+=qW;sy+=qH;}
+
+      sx=Math.min(sw-qW,Math.max(0,sx));
+      sy=Math.min(sh-qH,Math.max(0,sy));
+
+      tempCanvas.width=qW;
+      tempCanvas.height=qH;
+      const img=tempCtx.createImageData(qW,qH);
+
+      for(let yy=0;yy<qH;yy++)
+        for(let xx=0;xx<qW;xx++){
+          const si=((sy+yy)*sw+(sx+xx))*4;
+          const di=(yy*qW+xx)*4;
+          img.data.set(data.slice(si,si+4),di);
         }
-        requestAnimationFrame(loop);
+
+      tempCtx.putImageData(img,0,0);
+
+      const t=[
+        {dx:x,dy:y,sx:1,sy:1},
+        {dx:x+w,dy:y,sx:-1,sy:1},
+        {dx:x,dy:y+h,sx:1,sy:-1},
+        {dx:x+w,dy:y+h,sx:-1,sy:-1}
+      ];
+
+      t.forEach(o=>{
+        ctx.save();
+        ctx.translate(o.dx,o.dy);
+        ctx.scale(o.sx,o.sy);
+        ctx.drawImage(tempCanvas,0,0,qW,qH,0,0,w/2,h/2);
+        ctx.restore();
+      });
     }
+  }
+}
 
-    function renderFast(size) {
-        const cw = size / cols, ch = size / rows;
-        const qw = cw / 2, qh = ch / 2;
-        const bleed = 0.5; // High-performance gap fix
+document.getElementById('downloadButton').onclick=()=>{
+  const a=document.createElement('a');
+  a.download='image.png';
+  a.href=canvas.toDataURL();
+  a.click();
+};
 
-        for (let r = 0; r < rows; r++) {
-            for (let c = 0; c < cols; c++) {
-                const x = c * cw, y = r * ch;
-                
-                // Determine Source Quadrant Offset
-                let sx = x, sy = y;
-                if (activeEffect === 'A2') sx += qw;
-                if (activeEffect === 'B1') sy += qh;
-                if (activeEffect === 'B2') { sx += qw; sy += qh; }
+// defaults
+setEffect('A1');
+updateGridDisplay();
+</script>
 
-                ctx.save();
-                ctx.translate(x, y);
-
-                // TL
-                ctx.drawImage(buffer, sx, sy, qw, qh, 0, 0, qw + bleed, qh + bleed);
-                // TR
-                ctx.save();
-                ctx.translate(cw, 0); ctx.scale(-1, 1);
-                ctx.drawImage(buffer, sx, sy, qw, qh, 0, 0, qw + bleed, qh + bleed);
-                ctx.restore();
-                // BL
-                ctx.save();
-                ctx.translate(0, ch); ctx.scale(1, -1);
-                ctx.drawImage(buffer, sx, sy, qw, qh, 0, 0, qw + bleed, qh + bleed);
-                ctx.restore();
-                // BR
-                ctx.save();
-                ctx.translate(cw, ch); ctx.scale(-1, -1);
-                ctx.drawImage(buffer, sx, sy, qw, qh, 0, 0, qw + bleed, qh + bleed);
-                ctx.restore();
-
-                ctx.restore();
-            }
-        }
-    }
-
-    function setEffect(e) { activeEffect = e; document.querySelectorAll('.eff-btn').forEach(b => b.classList.toggle('active', b.innerText === e)); }
-    function clearEffect() { activeEffect = null; document.querySelectorAll('.eff-btn').forEach(b => b.classList.remove('active')); }
-    function downloadImage() { const l = document.createElement('a'); l.download = 'art.png'; l.href = canvas.toDataURL(); l.click(); }
-    startBtn.onclick = () => startWebcam();
-    stopBtn.onclick = () => { isRunning = false; stream.getTracks().forEach(t => t.stop()); startBtn.style.display = 'block'; stopBtn.style.display = 'none'; };
-    switchBtn.onclick = () => { currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length; startWebcam(videoDevices[currentDeviceIndex].deviceId); };
-  </script>
 </body>
 </html>
