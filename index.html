@@ -154,6 +154,13 @@ input[type="range"] { width: 100%; cursor: pointer; }
       <div class="slider-header"><span>Brightness</span><span id="val-bright">100%</span></div>
       <input id="brightnessSlider" type="range" min="50" max="150" value="100">
     </div>
+  <div class="slider-wrap">
+      <div class="slider-header"><span>Contrast</span><span id="val-contrast">100%</span></div>
+      <input id="contrastSlider" type="range" min="50" max="150" value="100">
+    </div>
+    <div class="slider-wrap">
+      <div class="slider-header"><span>Saturation</span><span id="val-sat">100%</span></div>
+      <input id="saturationSlider" type="range" min="0" max="200" value="100">
 
     <button id="effectA1" class="button effect-button">Agnes</button>
     <button id="effectA2" class="button effect-button">Bridget</button>
@@ -163,13 +170,7 @@ input[type="range"] { width: 100%; cursor: pointer; }
     <button id="clearEffectButton" class="button span-2">Original</button>
     <button id="downloadButton" class="button span-2" style="background:#28a745; border-color: #1e7e34;">Download</button>
 
-    <div class="slider-wrap">
-      <div class="slider-header"><span>Contrast</span><span id="val-contrast">100%</span></div>
-      <input id="contrastSlider" type="range" min="50" max="150" value="100">
-    </div>
-    <div class="slider-wrap">
-      <div class="slider-header"><span>Saturation</span><span id="val-sat">100%</span></div>
-      <input id="saturationSlider" type="range" min="0" max="200" value="100">
+  
     </div>
   </div>
 </div>
@@ -307,7 +308,7 @@ function renderKaleidoscope() {
 
 document.getElementById('downloadButton').onclick = () => {
   const a = document.createElement('a');
-  a.download = `LeeCampbellCatoptric2026_${Date.now()}.png`;
+  a.download = `LeeCampbellCatoptric2026}.png`;
   a.href = canvas.toDataURL();
   a.click();
 };
