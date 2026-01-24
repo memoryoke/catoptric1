@@ -1,14 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Dynamic Quadrant Video Processor</title>
 
 <style>
 body {
   margin: 0;
-  background-color: #111;
+  background: #111;
   color: #eee;
   font-family: sans-serif;
   display: flex;
@@ -16,35 +16,32 @@ body {
 }
 
 #app {
-  width: 100%;
+  width: 100vw;
   max-width: 100vmin;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
-/* ---------- CANVAS ---------- */
+/* -------- CANVAS -------- */
 
 canvas {
-  width: 100vw;
-  max-width: 100vmin;
-  height: auto;
+  width: 100%;
   aspect-ratio: 1 / 1;
-  display: block;
-  background-color: #333;
+  background: #333;
   image-rendering: pixelated;
+  display: block;
 }
 
-/* ---------- CONTROLS ---------- */
+/* -------- CONTROLS -------- */
 
 #controls {
   width: 100%;
-  max-width: 600px;
-  padding: 0.75rem;
   background: #1a1a1a;
+  padding: 0.75rem;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 0.5rem;
+  gap: 0.6rem;
   box-sizing: border-box;
 }
 
@@ -52,10 +49,10 @@ canvas {
   background: #444;
   border: 1px solid #555;
   color: #fff;
-  padding: 0.5rem;
-  cursor: pointer;
+  padding: 0.6rem;
   border-radius: 6px;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
+  cursor: pointer;
 }
 
 .button.active-effect {
@@ -63,36 +60,35 @@ canvas {
 }
 
 .slider-wrap {
+  grid-column: span 4;
   display: flex;
   align-items: center;
-  gap: 0.4rem;
-  font-size: 0.75rem;
+  gap: 0.6rem;
+  font-size: 0.8rem;
+}
+
+.slider-wrap span {
+  width: 80px;
+  text-align: right;
 }
 
 input[type="range"] {
-  width: 100%;
+  flex: 1;
 }
 
 .span-2 { grid-column: span 2; }
 .span-4 { grid-column: span 4; }
 
 #gridSizeDisplay {
-  grid-column: span 2;
+  grid-column: span 4;
+  text-align: center;
   font-family: monospace;
   background: #333;
   padding: 0.4rem;
   border-radius: 4px;
-  text-align: center;
 }
 
-#videoFeed { display:none; }
-
-@media (min-width: 700px) {
-  #controls {
-    border-radius: 12px;
-    margin-bottom: 1rem;
-  }
-}
+#videoFeed { display: none; }
 </style>
 </head>
 
@@ -104,44 +100,50 @@ input[type="range"] {
 
   <div id="controls">
 
-    <!-- ROW 1: CAMERA -->
-    <button id="startWebcamButton" class="button">Start</button>
-    <button id="stopWebcamButton" class="button">Stop</button>
-    <button id="freezeButton" class="button">Freeze</button>
-    <label class="slider-wrap">
-      <input id="autoGridToggle" type="checkbox"> Auto
+    <!-- CAMERA -->
+    <button id="startWebcamButton" class="button span-2">Start</button>
+    <button id="stopWebcamButton" class="button span-2">Stop</button>
+    <button id="freezeButton" class="button span-2">Freeze</button>
+    <label class="button span-2">
+      <input id="autoGridToggle" type="checkbox"> Auto grid
     </label>
 
-    <!-- ROW 2: GRID -->
+    <!-- GRID -->
     <div id="gridSizeDisplay">Grid: 10×10</div>
-    <div class="slider-wrap span-2">
-      Grid <input id="gridSlider" type="range" min="1" max="30" value="10">
+    <div class="slider-wrap">
+      <span>Grid</span>
+      <input id="gridSlider" type="range" min="1" max="30" value="10">
     </div>
 
-    <!-- ROW 3: GEOMETRY -->
+    <!-- CELL SCALE -->
     <div class="slider-wrap">
-      W <input id="cellWidthSlider" type="range" min="0.25" max="3" step="0.05" value="1">
+      <span>Cell size</span>
+      <input id="cellScaleSlider" type="range" min="0.25" max="3" step="0.05" value="1">
     </div>
-    <div class="slider-wrap">
-      H <input id="cellHeightSlider" type="range" min="0.25" max="3" step="0.05" value="1">
-    </div>
-    <label class="slider-wrap span-2">
-      <input id="lockRatio" type="checkbox" checked> Lock
-    </label>
 
-    <!-- ROW 4: IMAGE -->
-    <div class="slider-wrap span-4">
-      Saturation
+    <!-- IMAGE CONTROLS -->
+    <div class="slider-wrap">
+      <span>Brightness</span>
+      <input id="brightnessSlider" type="range" min="50" max="150" value="100">
+    </div>
+
+    <div class="slider-wrap">
+      <span>Contrast</span>
+      <input id="contrastSlider" type="range" min="50" max="150" value="100">
+    </div>
+
+    <div class="slider-wrap">
+      <span>Saturation</span>
       <input id="saturationSlider" type="range" min="0" max="200" value="100">
     </div>
 
-    <!-- ROW 5: MODES -->
+    <!-- MODES -->
     <button id="effectA1" class="button effect-button">Agnes</button>
     <button id="effectA2" class="button effect-button">Bridget</button>
     <button id="effectB1" class="button effect-button">Chuck</button>
     <button id="effectB2" class="button effect-button">Donald</button>
 
-    <!-- ROW 6: OUTPUT -->
+    <!-- OUTPUT -->
     <button id="clearEffectButton" class="button span-2">Original</button>
     <button id="downloadButton" class="button span-2">download image</button>
 
@@ -161,119 +163,112 @@ const offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently:true 
 const tempCanvas = document.createElement('canvas');
 const tempCtx = tempCanvas.getContext('2d', { willReadFrequently:true });
 
-let stream=null;
-let frozenFrame=null;
-let frozen=false;
+let stream = null;
+let frozen = false;
+let frozenFrame = null;
 
-let cols=10, rows=10;
-let autoGrid=false;
-let currentQuadrantEffect='A1';
+let cols = 10, rows = 10;
+let autoGrid = false;
+let currentQuadrantEffect = 'A1';
 
-let cellWidthScale=1;
-let cellHeightScale=1;
-let saturation=100;
+let cellScale = 1;
+let brightness = 100;
+let contrast = 100;
+let saturation = 100;
 
 /* ---------- UI ---------- */
 
-const gridSlider=document.getElementById('gridSlider');
-const gridDisplay=document.getElementById('gridSizeDisplay');
-const autoGridToggle=document.getElementById('autoGridToggle');
-const saturationSlider=document.getElementById('saturationSlider');
-const wSlider=document.getElementById('cellWidthSlider');
-const hSlider=document.getElementById('cellHeightSlider');
-const lockRatio=document.getElementById('lockRatio');
+const gridSlider = document.getElementById('gridSlider');
+const gridDisplay = document.getElementById('gridSizeDisplay');
+const autoGridToggle = document.getElementById('autoGridToggle');
 
-gridSlider.oninput=()=>{
-  if(!autoGrid){
-    cols=rows=gridSlider.value;
+const cellScaleSlider = document.getElementById('cellScaleSlider');
+const brightnessSlider = document.getElementById('brightnessSlider');
+const contrastSlider = document.getElementById('contrastSlider');
+const saturationSlider = document.getElementById('saturationSlider');
+
+gridSlider.oninput = () => {
+  if (!autoGrid) {
+    cols = rows = parseInt(gridSlider.value);
     updateGrid();
   }
 };
 
-autoGridToggle.onchange=()=>autoGrid=autoGridToggle.checked;
-saturationSlider.oninput=()=>saturation=saturationSlider.value;
+autoGridToggle.onchange = () => autoGrid = autoGridToggle.checked;
+cellScaleSlider.oninput = () => cellScale = parseFloat(cellScaleSlider.value);
+brightnessSlider.oninput = () => brightness = brightnessSlider.value;
+contrastSlider.oninput = () => contrast = contrastSlider.value;
+saturationSlider.oninput = () => saturation = saturationSlider.value;
 
-wSlider.oninput=()=>{
-  cellWidthScale=parseFloat(wSlider.value);
-  if(lockRatio.checked){
-    cellHeightScale=cellWidthScale;
-    hSlider.value=wSlider.value;
-  }
-};
-
-hSlider.oninput=()=>{
-  cellHeightScale=parseFloat(hSlider.value);
-  if(lockRatio.checked){
-    cellWidthScale=cellHeightScale;
-    wSlider.value=hSlider.value;
-  }
-};
-
-function updateGrid(){
-  gridDisplay.textContent=`Grid: ${cols}×${rows}`;
+function updateGrid() {
+  gridDisplay.textContent = `Grid: ${cols}×${rows}`;
 }
 
 /* ---------- EFFECTS ---------- */
 
-function setEffect(e){
-  currentQuadrantEffect=e;
-  document.querySelectorAll('.effect-button').forEach(b=>{
-    b.classList.toggle('active-effect', b.id===`effect${e}`);
+function setEffect(e) {
+  currentQuadrantEffect = e;
+  document.querySelectorAll('.effect-button').forEach(b => {
+    b.classList.toggle('active-effect', b.id === `effect${e}`);
   });
 }
 
-['A1','A2','B1','B2'].forEach(e=>{
-  document.getElementById(`effect${e}`).onclick=()=>setEffect(e);
-});
+['A1','A2','B1','B2'].forEach(e =>
+  document.getElementById(`effect${e}`).onclick = () => setEffect(e)
+);
 
-document.getElementById('clearEffectButton').onclick=()=>setEffect(null);
+document.getElementById('clearEffectButton').onclick = () => setEffect(null);
 
 /* ---------- CAMERA ---------- */
 
-document.getElementById('startWebcamButton').onclick=async()=>{
-  stream=await navigator.mediaDevices.getUserMedia({video:true});
-  video.srcObject=stream;
+document.getElementById('startWebcamButton').onclick = async () => {
+  stream = await navigator.mediaDevices.getUserMedia({ video:true });
+  video.srcObject = stream;
   await video.play();
 
-  const size=Math.min(video.videoWidth,video.videoHeight);
-  canvas.width=canvas.height=size;
-  offscreenCanvas.width=offscreenCanvas.height=size;
+  const size = Math.min(video.videoWidth, video.videoHeight);
+  canvas.width = canvas.height = size;
+  offscreenCanvas.width = offscreenCanvas.height = size;
 
   loop();
 };
 
-document.getElementById('stopWebcamButton').onclick=()=>{
-  stream?.getTracks().forEach(t=>t.stop());
+document.getElementById('stopWebcamButton').onclick = () => {
+  stream?.getTracks().forEach(t => t.stop());
+  stream = null;
 };
 
-document.getElementById('freezeButton').onclick=()=>{
-  frozen=!frozen;
-  if(frozen){
-    frozenFrame=offscreenCtx.getImageData(0,0,canvas.width,canvas.height);
+document.getElementById('freezeButton').onclick = () => {
+  frozen = !frozen;
+  if (frozen) {
+    frozenFrame = offscreenCtx.getImageData(0,0,canvas.width,canvas.height);
   }
 };
 
 /* ---------- MAIN LOOP ---------- */
 
-function loop(){
-  if(!stream) return;
+function loop() {
+  if (!stream) return;
 
-  if(!frozen){
-    offscreenCtx.filter=`saturate(${saturation}%)`;
+  if (!frozen) {
+    offscreenCtx.filter =
+      `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
     offscreenCtx.drawImage(video,0,0,canvas.width,canvas.height);
-    frozenFrame=offscreenCtx.getImageData(0,0,canvas.width,canvas.height);
+    frozenFrame = offscreenCtx.getImageData(0,0,canvas.width,canvas.height);
   }
 
-  if(autoGrid){
-    let sum=0;
-    const d=frozenFrame.data;
-    for(let i=0;i<d.length;i+=4)
-      sum+=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
-    cols=rows=Math.max(1,Math.min(30,Math.round((sum/(d.length/4))/255*30)));
+  if (autoGrid) {
+    let sum = 0;
+    const d = frozenFrame.data;
+    for (let i=0;i<d.length;i+=4)
+      sum += 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
+    cols = rows = Math.max(1, Math.min(30,
+      Math.round((sum/(d.length/4))/255 * 30)
+    ));
     updateGrid();
   }
 
-  if(currentQuadrantEffect)
+  if (currentQuadrantEffect)
     processQuadrant(currentQuadrantEffect,false,frozenFrame);
   else
     ctx.putImageData(frozenFrame,0,0);
@@ -299,8 +294,8 @@ function processQuadrant(target,setState,sourceImageData){
     for(let c=0;c<cols;c++){
       const x=Math.floor(c*baseW);
       const y=Math.floor(r*baseH);
-      const w=Math.floor(baseW*cellWidthScale);
-      const h=Math.floor(baseH*cellHeightScale);
+      const w=Math.floor(baseW*cellScale);
+      const h=Math.floor(baseH*cellScale);
       const qW=Math.floor(w/2);
       const qH=Math.floor(h/2);
       if(qW<=0||qH<=0) continue;
@@ -326,14 +321,12 @@ function processQuadrant(target,setState,sourceImageData){
 
       tempCtx.putImageData(img,0,0);
 
-      const t=[
+      [
         {dx:x,dy:y,sx:1,sy:1},
         {dx:x+w,dy:y,sx:-1,sy:1},
         {dx:x,dy:y+h,sx:1,sy:-1},
         {dx:x+w,dy:y+h,sx:-1,sy:-1}
-      ];
-
-      t.forEach(o=>{
+      ].forEach(o=>{
         ctx.save();
         ctx.translate(o.dx,o.dy);
         ctx.scale(o.sx,o.sy);
@@ -346,7 +339,7 @@ function processQuadrant(target,setState,sourceImageData){
 
 /* ---------- DOWNLOAD ---------- */
 
-document.getElementById('downloadButton').onclick=()=>{
+document.getElementById('downloadButton').onclick = () => {
   const a=document.createElement('a');
   a.download='image.png';
   a.href=canvas.toDataURL();
