@@ -49,7 +49,7 @@ canvas {
   color: #fff;
   padding: 0.8rem 0.2rem;
   border-radius: 6px;
-  font-size: 1.5rem; /* Larger for Mobile */
+  font-size: 1.5rem; 
   cursor: pointer;
   text-align: center;
   display: flex;
@@ -62,7 +62,7 @@ canvas {
   display: flex;
   flex-direction: column;
   gap: 0.3rem;
-  font-size: 1.5rem; /* Larger for Mobile */
+  font-size: 1.5rem; 
   background: #222;
   padding: 10px;
   border-radius: 4px;
@@ -95,7 +95,6 @@ canvas {
     grid-template-columns: repeat(4, 1fr);
   }
 
-  /* DESKTOP SPECIFIC SIZES */
   .button {
     font-size: 0.85rem; 
   }
@@ -119,6 +118,9 @@ canvas {
 
 input[type="range"] { width: 100%; cursor: pointer; }
 
+/* Grid logic for start/switch buttons */
+#startWebcamButton.full-width { grid-column: span 2; }
+.span-1 { grid-column: span 1; }
 .span-2 { grid-column: span 2; }
 .span-4 { grid-column: span 4; }
 
@@ -145,7 +147,8 @@ input[type="range"] { width: 100%; cursor: pointer; }
   <div id="controls">
     <div id="gridSizeDisplay">GRID: 10×10</div>
 
-    <button id="startWebcamButton" class="button span-2">Start</button>
+    <button id="startWebcamButton" class="button span-1">Start</button>
+    <button id="switchCameraButton" class="button span-1" style="display: none;">Switch</button>
     <button id="freezeButton" class="button span-2">Freeze/Unfreeze</button>
     
     <label class="button span-4">
@@ -194,6 +197,7 @@ const offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true
 let stream = null, frozen = false, gridSize = 10, autoGrid = false;
 let currentEffect = 'A1', brightness = 100, contrast = 100, saturation = 100;
 let lastAutoUpdate = 0;
+let currentFacingMode = 'user';
 
 /* --- UI Handlers --- */
 const updateVal = (id, val) => document.getElementById(id).textContent = val;
@@ -219,10 +223,30 @@ function setEffect(e) {
 ['A1','A2','B1','B2'].forEach(e => document.getElementById(`effect${e}`).onclick = () => setEffect(e));
 document.getElementById('clearEffectButton').onclick = () => setEffect(null);
 
-/* --- Camera Setup --- */
-document.getElementById('startWebcamButton').onclick = async () => {
+/* --- Camera Logic with Multi-Cam Detection --- */
+async function checkCameraCount() {
+  const devices = await navigator.mediaDevices.enumerateDevices();
+  const videoDevices = devices.filter(device => device.kind === 'videoinput');
+  const switchBtn = document.getElementById('switchCameraButton');
+  const startBtn = document.getElementById('startWebcamButton');
+
+  if (videoDevices.length > 1) {
+    switchBtn.style.display = 'flex';
+    startBtn.classList.remove('full-width');
+  } else {
+    switchBtn.style.display = 'none';
+    startBtn.classList.add('full-width'); // Make Start span 2 columns if no switch is needed
+  }
+}
+
+async function startCamera() {
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
+  }
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+    stream = await navigator.mediaDevices.getUserMedia({ 
+      video: { facingMode: currentFacingMode } 
+    });
     video.srcObject = stream;
     await video.play();
     const size = Math.min(video.videoWidth, video.videoHeight);
@@ -230,8 +254,15 @@ document.getElementById('startWebcamButton').onclick = async () => {
     offscreenCanvas.width = offscreenCanvas.height = size;
     loop();
   } catch (err) {
-    alert("Camera access denied or not available. Please ensure you are using HTTPS.");
+    alert("Camera error. Use HTTPS or check permissions.");
   }
+}
+
+document.getElementById('startWebcamButton').onclick = startCamera;
+
+document.getElementById('switchCameraButton').onclick = () => {
+  currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
+  startCamera();
 };
 
 document.getElementById('freezeButton').onclick = () => {
@@ -296,6 +327,8 @@ document.getElementById('downloadButton').onclick = () => {
   a.click();
 };
 
+// Start-up checks
+checkCameraCount();
 setEffect('A1');
 </script>
 </body>
