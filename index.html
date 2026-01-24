@@ -6,7 +6,7 @@
 <title>Adaptive Catoptric Processor</title>
 
 <style>
-/* --- BASE STYLES (Mobile First: Vertical Stack) --- */
+/* --- BASE STYLES --- */
 body {
   margin: 0;
   background: #111;
@@ -28,8 +28,9 @@ canvas {
   width: 100%;
   aspect-ratio: 1 / 1;
   background: #000;
-  image-rendering: pixelated;
   display: block;
+  /* Pixelated rendering helps prevent blurry edges that cause gaps */
+  image-rendering: pixelated; 
 }
 
 #controls {
@@ -42,7 +43,7 @@ canvas {
   box-sizing: border-box;
 }
 
-/* MOBILE BUTTON/SLIDER STYLE (Below 1050px) */
+/* MOBILE SIZES (Below 1050px) */
 .button {
   background: #333;
   border: 1px solid #444;
@@ -68,57 +69,21 @@ canvas {
   border-radius: 4px;
 }
 
-/* --- DESKTOP ADAPTATION (1050px and above) --- */
+/* DESKTOP ADAPTATION (1050px+) */
 @media (min-width: 1050px) {
-  body {
-    justify-content: center;
-    padding: 20px;
-  }
-  
-  #app {
-    max-width: 1100px;
-    flex-direction: row; 
-    align-items: flex-start;
-    gap: 20px;
-  }
-
-  canvas {
-    width: 550px; 
-    position: sticky;
-    top: 20px;
-    border-radius: 8px;
-  }
-
-  #controls {
-    flex: 1;
-    border-radius: 8px;
-    grid-template-columns: repeat(4, 1fr);
-  }
-
-  .button {
-    font-size: 0.85rem; 
-  }
-
-  .slider-wrap {
-    font-size: 0.75rem;
-  }
+  body { justify-content: center; padding: 20px; }
+  #app { max-width: 1100px; flex-direction: row; align-items: flex-start; gap: 20px; }
+  canvas { width: 550px; position: sticky; top: 20px; border-radius: 8px; }
+  #controls { flex: 1; border-radius: 8px; grid-template-columns: repeat(4, 1fr); }
+  .button { font-size: 0.85rem; }
+  .slider-wrap { font-size: 0.75rem; }
 }
 
-/* --- GLOBAL COMPONENT STYLES --- */
 .button:active { background: #444; }
 .button.active-effect { background: #007bff; border-color: #00a2ff; }
-
 .effect-button { grid-column: span 1; }
-
-.slider-header {
-  display: flex;
-  justify-content: space-between;
-  color: #aaa;
-}
-
+.slider-header { display: flex; justify-content: space-between; color: #aaa; }
 input[type="range"] { width: 100%; cursor: pointer; }
-
-/* Grid logic for start/switch buttons */
 #startWebcamButton.full-width { grid-column: span 2; }
 .span-1 { grid-column: span 1; }
 .span-2 { grid-column: span 2; }
@@ -196,10 +161,8 @@ const offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true
 
 let stream = null, frozen = false, gridSize = 10, autoGrid = false;
 let currentEffect = 'A1', brightness = 100, contrast = 100, saturation = 100;
-let lastAutoUpdate = 0;
-let currentFacingMode = 'user';
+let lastAutoUpdate = 0, currentFacingMode = 'user';
 
-/* --- UI Handlers --- */
 const updateVal = (id, val) => document.getElementById(id).textContent = val;
 
 document.getElementById('gridSlider').oninput = (e) => {
@@ -223,64 +186,59 @@ function setEffect(e) {
 ['A1','A2','B1','B2'].forEach(e => document.getElementById(`effect${e}`).onclick = () => setEffect(e));
 document.getElementById('clearEffectButton').onclick = () => setEffect(null);
 
-/* --- Camera Logic with Multi-Cam Detection --- */
 async function checkCameraCount() {
   const devices = await navigator.mediaDevices.enumerateDevices();
   const videoDevices = devices.filter(device => device.kind === 'videoinput');
   const switchBtn = document.getElementById('switchCameraButton');
   const startBtn = document.getElementById('startWebcamButton');
-
   if (videoDevices.length > 1) {
     switchBtn.style.display = 'flex';
     startBtn.classList.remove('full-width');
   } else {
     switchBtn.style.display = 'none';
-    startBtn.classList.add('full-width'); // Make Start span 2 columns if no switch is needed
+    startBtn.classList.add('full-width');
   }
 }
 
 async function startCamera() {
-  if (stream) {
-    stream.getTracks().forEach(track => track.stop());
-  }
+  if (stream) stream.getTracks().forEach(track => track.stop());
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ 
-      video: { facingMode: currentFacingMode } 
-    });
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: currentFacingMode } });
     video.srcObject = stream;
     await video.play();
-    const size = Math.min(video.videoWidth, video.videoHeight);
+    const size = Math.floor(Math.min(video.videoWidth, video.videoHeight));
     canvas.width = canvas.height = size;
     offscreenCanvas.width = offscreenCanvas.height = size;
     loop();
-  } catch (err) {
-    alert("Camera error. Use HTTPS or check permissions.");
-  }
+  } catch (err) { alert("Camera error."); }
 }
 
 document.getElementById('startWebcamButton').onclick = startCamera;
-
 document.getElementById('switchCameraButton').onclick = () => {
   currentFacingMode = (currentFacingMode === 'user') ? 'environment' : 'user';
   startCamera();
 };
-
 document.getElementById('freezeButton').onclick = () => {
   frozen = !frozen;
   document.getElementById('freezeButton').classList.toggle('active-effect', frozen);
 };
 
-/* --- Main Processing Loop --- */
 function loop() {
   if (!stream) return;
   if (!frozen) {
     offscreenCtx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
-    const sx = (video.videoWidth - canvas.width) / 2;
-    const sy = (video.videoHeight - canvas.height) / 2;
+    const sx = Math.floor((video.videoWidth - canvas.width) / 2);
+    const sy = Math.floor((video.videoHeight - canvas.height) / 2);
     offscreenCtx.drawImage(video, sx, sy, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
   }
   if (autoGrid) handleAutoGrid();
-  currentEffect ? renderKaleidoscope() : ctx.drawImage(offscreenCanvas, 0, 0);
+  
+  if (currentEffect) {
+    renderKaleidoscope();
+  } else {
+    ctx.drawImage(offscreenCanvas, 0, 0);
+  }
+  
   requestAnimationFrame(loop);
 }
 
@@ -291,29 +249,43 @@ function handleAutoGrid() {
   let sum = 0;
   for (let i = 0; i < data.length; i += 120) sum += (0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2]);
   const avg = sum / (data.length / 120);
-  const newSize = Math.max(1, Math.min(50, Math.round((avg / 255) * 50)));
+  const newSize = Math.max(1, Math.min(30, Math.round((avg / 255) * 30)));
   if (Math.abs(newSize - gridSize) > 2) {
     gridSize = newSize;
     updateVal('val-grid', gridSize);
     document.getElementById('gridSizeDisplay').textContent = `GRID: ${gridSize}×${gridSize}`;
+    document.getElementById('gridSlider').value = gridSize;
   }
   lastAutoUpdate = now;
 }
 
 function renderKaleidoscope() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.imageSmoothingEnabled = false;
-  const step = canvas.width / gridSize, half = step / 2;
+  // 1. Force everything to whole numbers to avoid sub-pixel gaps
+  const step = Math.floor(canvas.width / gridSize);
+  const half = Math.floor(step / 2);
+  
+  // 2. IMPORTANT: Do not clearRect here. Let the new frame overwrite the old one.
+  // We draw the basic image first as a background "safety net"
+  ctx.drawImage(offscreenCanvas, 0, 0, canvas.width, canvas.height);
+
   for (let r = 0; r < gridSize; r++) {
     for (let c = 0; c < gridSize; c++) {
-      const cx = c * step + half, cy = r * step + half;
-      let sx = c * step, sy = r * step;
+      const cx = c * step + half;
+      const cy = r * step + half;
+
+      let sx = c * step;
+      let sy = r * step;
       if (currentEffect === 'A2') sx += half;
       if (currentEffect === 'B1') sy += half;
       if (currentEffect === 'B2') { sx += half; sy += half; }
+
       [{x:1,y:1},{x:-1,y:1},{x:1,y:-1},{x:-1,y:-1}].forEach(t => {
-        ctx.save(); ctx.translate(cx, cy); ctx.scale(t.x, t.y);
-        ctx.drawImage(offscreenCanvas, sx, sy, half, half, 0, 0, half, half);
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(t.x, t.y);
+        
+        // Use a 1px overlap to ensure no gaps are possible
+        ctx.drawImage(offscreenCanvas, sx, sy, half, half, 0, 0, half + 1, half + 1);
         ctx.restore();
       });
     }
@@ -327,10 +299,8 @@ document.getElementById('downloadButton').onclick = () => {
   a.click();
 };
 
-// Start-up checks
 checkCameraCount();
 setEffect('A1');
 </script>
 </body>
 </html>
-
