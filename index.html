@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Adaptive Quadrant Processor</title>
+<title>Adaptive Catoptric Processor</title>
 
 <style>
 /* --- BASE STYLES (Mobile First: Vertical Stack) --- */
@@ -37,12 +37,38 @@ canvas {
   background: #1a1a1a;
   padding: 1rem;
   display: grid;
-  grid-template-columns: repeat(4, 1fr); /* 4-column base grid */
+  grid-template-columns: repeat(4, 1fr); 
   gap: 0.6rem;
   box-sizing: border-box;
 }
 
-/* --- DESKTOP ADAPTATION (Wider than 900px) --- */
+/* MOBILE BUTTON/SLIDER STYLE (Below 1050px) */
+.button {
+  background: #333;
+  border: 1px solid #444;
+  color: #fff;
+  padding: 0.8rem 0.2rem;
+  border-radius: 6px;
+  font-size: 1.5rem; /* Larger for Mobile */
+  cursor: pointer;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.slider-wrap {
+  grid-column: span 4;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 1.5rem; /* Larger for Mobile */
+  background: #222;
+  padding: 10px;
+  border-radius: 4px;
+}
+
+/* --- DESKTOP ADAPTATION (1050px and above) --- */
 @media (min-width: 1050px) {
   body {
     justify-content: center;
@@ -51,7 +77,7 @@ canvas {
   
   #app {
     max-width: 1100px;
-    flex-direction: row; /* Side-by-side */
+    flex-direction: row; 
     align-items: flex-start;
     gap: 20px;
   }
@@ -66,43 +92,24 @@ canvas {
   #controls {
     flex: 1;
     border-radius: 8px;
-    grid-template-columns: repeat(4, 1fr); /* Keep 4 cols for button math */
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  /* DESKTOP SPECIFIC SIZES */
+  .button {
+    font-size: 0.85rem; 
+  }
+
+  .slider-wrap {
+    font-size: 0.75rem;
   }
 }
 
-/* --- BUTTONS & ELEMENTS --- */
-.button {
-  background: #333;
-  border: 1px solid #444;
-  color: #fff;
-  padding: 0.8rem 0.2rem;
-  border-radius: 6px;
-  font-size: 2rem;
-  cursor: pointer;
-  text-align: center;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
+/* --- GLOBAL COMPONENT STYLES --- */
 .button:active { background: #444; }
 .button.active-effect { background: #007bff; border-color: #00a2ff; }
 
-/* Equal sized effect buttons: 1/4 width each */
-.effect-button {
-  grid-column: span 1; 
-}
-
-.slider-wrap {
-  grid-column: span 4;
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  font-size: 2rem;
-  background: #222;
-  padding: 10px;
-  border-radius: 4px;
-}
+.effect-button { grid-column: span 1; }
 
 .slider-header {
   display: flex;
@@ -142,7 +149,7 @@ input[type="range"] { width: 100%; cursor: pointer; }
     <button id="freezeButton" class="button span-2">Freeze/Unfreeze</button>
     
     <label class="button span-4">
-      <input id="autoGridToggle" type="checkbox" style="margin-right: 8px;"> Auto
+      <input id="autoGridToggle" type="checkbox" style="margin-right: 8px; transform: scale(1.5);"> Auto
     </label>
 
     <div class="slider-wrap">
@@ -154,13 +161,16 @@ input[type="range"] { width: 100%; cursor: pointer; }
       <div class="slider-header"><span>Brightness</span><span id="val-bright">100%</span></div>
       <input id="brightnessSlider" type="range" min="50" max="150" value="100">
     </div>
-  <div class="slider-wrap">
+
+    <div class="slider-wrap">
       <div class="slider-header"><span>Contrast</span><span id="val-contrast">100%</span></div>
       <input id="contrastSlider" type="range" min="50" max="150" value="100">
     </div>
+
     <div class="slider-wrap">
       <div class="slider-header"><span>Saturation</span><span id="val-sat">100%</span></div>
       <input id="saturationSlider" type="range" min="0" max="200" value="100">
+    </div>
 
     <button id="effectA1" class="button effect-button">Agnes</button>
     <button id="effectA2" class="button effect-button">Bridget</button>
@@ -169,9 +179,6 @@ input[type="range"] { width: 100%; cursor: pointer; }
 
     <button id="clearEffectButton" class="button span-2">Original</button>
     <button id="downloadButton" class="button span-2" style="background:#28a745; border-color: #1e7e34;">Download</button>
-
-  
-    </div>
   </div>
 </div>
 
@@ -218,12 +225,9 @@ document.getElementById('startWebcamButton').onclick = async () => {
     stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
     video.srcObject = stream;
     await video.play();
-    
-    // Set internal resolution based on video feed
     const size = Math.min(video.videoWidth, video.videoHeight);
     canvas.width = canvas.height = size;
     offscreenCanvas.width = offscreenCanvas.height = size;
-    
     loop();
   } catch (err) {
     alert("Camera access denied or not available. Please ensure you are using HTTPS.");
@@ -238,37 +242,25 @@ document.getElementById('freezeButton').onclick = () => {
 /* --- Main Processing Loop --- */
 function loop() {
   if (!stream) return;
-
   if (!frozen) {
     offscreenCtx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
     const sx = (video.videoWidth - canvas.width) / 2;
     const sy = (video.videoHeight - canvas.height) / 2;
     offscreenCtx.drawImage(video, sx, sy, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
   }
-
   if (autoGrid) handleAutoGrid();
-
-  if (currentEffect) {
-    renderKaleidoscope();
-  } else {
-    ctx.drawImage(offscreenCanvas, 0, 0);
-  }
-
+  currentEffect ? renderKaleidoscope() : ctx.drawImage(offscreenCanvas, 0, 0);
   requestAnimationFrame(loop);
 }
 
 function handleAutoGrid() {
   const now = Date.now();
   if (now - lastAutoUpdate < 150) return;
-
   const data = offscreenCtx.getImageData(0, 0, canvas.width, canvas.height).data;
   let sum = 0;
-  for (let i = 0; i < data.length; i += 120) {
-    sum += (0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2]);
-  }
+  for (let i = 0; i < data.length; i += 120) sum += (0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2]);
   const avg = sum / (data.length / 120);
   const newSize = Math.max(1, Math.min(50, Math.round((avg / 255) * 50)));
-
   if (Math.abs(newSize - gridSize) > 2) {
     gridSize = newSize;
     updateVal('val-grid', gridSize);
@@ -280,25 +272,16 @@ function handleAutoGrid() {
 function renderKaleidoscope() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.imageSmoothingEnabled = false;
-
-  const step = canvas.width / gridSize;
-  const half = step / 2;
-
+  const step = canvas.width / gridSize, half = step / 2;
   for (let r = 0; r < gridSize; r++) {
     for (let c = 0; c < gridSize; c++) {
-      const cx = c * step + half;
-      const cy = r * step + half;
-
-      let sx = c * step;
-      let sy = r * step;
+      const cx = c * step + half, cy = r * step + half;
+      let sx = c * step, sy = r * step;
       if (currentEffect === 'A2') sx += half;
       if (currentEffect === 'B1') sy += half;
       if (currentEffect === 'B2') { sx += half; sy += half; }
-
       [{x:1,y:1},{x:-1,y:1},{x:1,y:-1},{x:-1,y:-1}].forEach(t => {
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.scale(t.x, t.y);
+        ctx.save(); ctx.translate(cx, cy); ctx.scale(t.x, t.y);
         ctx.drawImage(offscreenCanvas, sx, sy, half, half, 0, 0, half, half);
         ctx.restore();
       });
@@ -308,14 +291,12 @@ function renderKaleidoscope() {
 
 document.getElementById('downloadButton').onclick = () => {
   const a = document.createElement('a');
-  a.download = `LeeCampbellCatoptric2026}.png`;
+  a.download = `LeeCampbellCatoptric2026.png`;
   a.href = canvas.toDataURL();
   a.click();
 };
 
-// Default effect
 setEffect('A1');
 </script>
-
 </body>
 </html>
