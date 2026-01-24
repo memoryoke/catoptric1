@@ -23,17 +23,13 @@ body {
   align-items: center;
 }
 
-/* -------- CANVAS -------- */
-
 canvas {
   width: 100%;
   aspect-ratio: 1 / 1;
-  background: #333;
+  background: #000;
   image-rendering: pixelated;
   display: block;
 }
-
-/* -------- CONTROLS -------- */
 
 #controls {
   width: 100%;
@@ -53,11 +49,11 @@ canvas {
   border-radius: 6px;
   font-size: 0.85rem;
   cursor: pointer;
+  text-align: center;
 }
 
-.button.active-effect {
-  background: #6a6a6a;
-}
+.button:active { background: #555; }
+.active-effect { background: #007bff !important; border-color: #00a2ff; }
 
 .slider-wrap {
   grid-column: span 4;
@@ -67,17 +63,9 @@ canvas {
   font-size: 0.8rem;
 }
 
-.slider-wrap span {
-  width: 80px;
-  text-align: right;
-}
-
-input[type="range"] {
-  flex: 1;
-}
-
+.slider-wrap span { width: 80px; text-align: right; }
+input[type="range"] { flex: 1; }
 .span-2 { grid-column: span 2; }
-.span-4 { grid-column: span 4; }
 
 #gridSizeDisplay {
   grid-column: span 4;
@@ -91,62 +79,40 @@ input[type="range"] {
 #videoFeed { display: none; }
 </style>
 </head>
-
 <body>
 
 <div id="app">
-
   <canvas id="canvas"></canvas>
-
   <div id="controls">
-
-    <!-- CAMERA -->
-    <button id="startWebcamButton" class="button span-2">Start</button>
-    <button id="stopWebcamButton" class="button span-2">Stop</button>
-    <button id="freezeButton" class="button span-2">Freeze</button>
-    <label class="button span-2">
-      <input id="autoGridToggle" type="checkbox"> Auto grid
+    <button id="startWebcamButton" class="button span-2">Start Camera</button>
+    <button id="freezeButton" class="button span-2">Freeze Frame</button>
+    
+    <label class="button span-4">
+      <input id="autoGridToggle" type="checkbox"> Enable Auto-Grid (Brightness Based)
     </label>
 
-    <!-- GRID -->
     <div id="gridSizeDisplay">Grid: 10×10</div>
     <div class="slider-wrap">
-      <span>Grid</span>
-      <input id="gridSlider" type="range" min="1" max="30" value="10">
-    </div>
-
-    <!-- CELL SCALE -->
-    <div class="slider-wrap">
-      <span>Cell size</span>
-      <input id="cellScaleSlider" type="range" min="0.25" max="3" step="0.05" value="1">
-    </div>
-
-    <!-- IMAGE CONTROLS -->
-    <div class="slider-wrap">
-      <span>Brightness</span>
-      <input id="brightnessSlider" type="range" min="50" max="150" value="100">
+      <span>Grid Size</span>
+      <input id="gridSlider" type="range" min="1" max="40" value="10">
     </div>
 
     <div class="slider-wrap">
-      <span>Contrast</span>
-      <input id="contrastSlider" type="range" min="50" max="150" value="100">
+      <span>Cell Scale</span>
+      <input id="cellScaleSlider" type="range" min="0.1" max="2.0" step="0.05" value="1">
     </div>
 
-    <div class="slider-wrap">
-      <span>Saturation</span>
-      <input id="saturationSlider" type="range" min="0" max="200" value="100">
-    </div>
+    <div class="slider-wrap"><span>Brightness</span><input id="brightnessSlider" type="range" min="50" max="150" value="100"></div>
+    <div class="slider-wrap"><span>Contrast</span><input id="contrastSlider" type="range" min="50" max="150" value="100"></div>
+    <div class="slider-wrap"><span>Saturation</span><input id="saturationSlider" type="range" min="0" max="200" value="100"></div>
 
-    <!-- MODES -->
     <button id="effectA1" class="button effect-button">Agnes</button>
     <button id="effectA2" class="button effect-button">Bridget</button>
     <button id="effectB1" class="button effect-button">Chuck</button>
     <button id="effectB2" class="button effect-button">Donald</button>
 
-    <!-- OUTPUT -->
     <button id="clearEffectButton" class="button span-2">Original</button>
-    <button id="downloadButton" class="button span-2">download image</button>
-
+    <button id="downloadButton" class="button span-2">Save Image</button>
   </div>
 </div>
 
@@ -154,57 +120,47 @@ input[type="range"] {
 
 <script>
 const canvas = document.getElementById('canvas');
-const ctx = canvas.getContext('2d', { willReadFrequently:true });
+const ctx = canvas.getContext('2d');
 const video = document.getElementById('videoFeed');
 
+// Offscreen canvas stores the processed "source" frame
 const offscreenCanvas = document.createElement('canvas');
-const offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently:true });
-
-const tempCanvas = document.createElement('canvas');
-const tempCtx = tempCanvas.getContext('2d', { willReadFrequently:true });
+const offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true });
 
 let stream = null;
 let frozen = false;
-let frozenFrame = null;
-
 let cols = 10, rows = 10;
 let autoGrid = false;
 let currentQuadrantEffect = 'A1';
+let cellScale = 1.0;
+let brightness = 100, contrast = 100, saturation = 100;
 
-let cellScale = 1;
-let brightness = 100;
-let contrast = 100;
-let saturation = 100;
+// Pro-tip: Smoothing buffer for AutoGrid
+let targetGridSize = 10;
+let lastUpdate = 0;
 
-/* ---------- UI ---------- */
+/* ---------- UI HANDLERS ---------- */
 
 const gridSlider = document.getElementById('gridSlider');
 const gridDisplay = document.getElementById('gridSizeDisplay');
 const autoGridToggle = document.getElementById('autoGridToggle');
 
-const cellScaleSlider = document.getElementById('cellScaleSlider');
-const brightnessSlider = document.getElementById('brightnessSlider');
-const contrastSlider = document.getElementById('contrastSlider');
-const saturationSlider = document.getElementById('saturationSlider');
-
 gridSlider.oninput = () => {
   if (!autoGrid) {
     cols = rows = parseInt(gridSlider.value);
-    updateGrid();
+    updateGridDisplay();
   }
 };
 
 autoGridToggle.onchange = () => autoGrid = autoGridToggle.checked;
-cellScaleSlider.oninput = () => cellScale = parseFloat(cellScaleSlider.value);
-brightnessSlider.oninput = () => brightness = brightnessSlider.value;
-contrastSlider.oninput = () => contrast = contrastSlider.value;
-saturationSlider.oninput = () => saturation = saturationSlider.value;
+document.getElementById('cellScaleSlider').oninput = (e) => cellScale = parseFloat(e.target.value);
+document.getElementById('brightnessSlider').oninput = (e) => brightness = e.target.value;
+document.getElementById('contrastSlider').oninput = (e) => contrast = e.target.value;
+document.getElementById('saturationSlider').oninput = (e) => saturation = e.target.value;
 
-function updateGrid() {
+function updateGridDisplay() {
   gridDisplay.textContent = `Grid: ${cols}×${rows}`;
 }
-
-/* ---------- EFFECTS ---------- */
 
 function setEffect(e) {
   currentQuadrantEffect = e;
@@ -219,138 +175,127 @@ function setEffect(e) {
 
 document.getElementById('clearEffectButton').onclick = () => setEffect(null);
 
-/* ---------- CAMERA ---------- */
-
 document.getElementById('startWebcamButton').onclick = async () => {
-  stream = await navigator.mediaDevices.getUserMedia({ video:true });
-  video.srcObject = stream;
-  await video.play();
-
-  const size = Math.min(video.videoWidth, video.videoHeight);
-  canvas.width = canvas.height = size;
-  offscreenCanvas.width = offscreenCanvas.height = size;
-
-  loop();
-};
-
-document.getElementById('stopWebcamButton').onclick = () => {
-  stream?.getTracks().forEach(t => t.stop());
-  stream = null;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: true });
+    video.srcObject = stream;
+    video.onloadedmetadata = () => {
+      const size = Math.min(video.videoWidth, video.videoHeight);
+      canvas.width = canvas.height = size;
+      offscreenCanvas.width = offscreenCanvas.height = size;
+      loop();
+    };
+  } catch (err) { console.error("Camera error:", err); }
 };
 
 document.getElementById('freezeButton').onclick = () => {
   frozen = !frozen;
-  if (frozen) {
-    frozenFrame = offscreenCtx.getImageData(0,0,canvas.width,canvas.height);
-  }
+  document.getElementById('freezeButton').textContent = frozen ? "Unfreeze" : "Freeze Frame";
 };
 
-/* ---------- MAIN LOOP ---------- */
+/* ---------- CORE LOGIC ---------- */
 
 function loop() {
   if (!stream) return;
 
   if (!frozen) {
-    offscreenCtx.filter =
-      `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
-    offscreenCtx.drawImage(video,0,0,canvas.width,canvas.height);
-    frozenFrame = offscreenCtx.getImageData(0,0,canvas.width,canvas.height);
+    // Apply image filters to the offscreen buffer
+    offscreenCtx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
+    offscreenCtx.drawImage(video, (video.videoWidth - canvas.width)/2, (video.videoHeight - canvas.height)/2, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height);
   }
 
   if (autoGrid) {
-    let sum = 0;
-    const d = frozenFrame.data;
-    for (let i=0;i<d.length;i+=4)
-      sum += 0.299*d[i] + 0.587*d[i+1] + 0.114*d[i+2];
-    cols = rows = Math.max(1, Math.min(30,
-      Math.round((sum/(d.length/4))/255 * 30)
-    ));
-    updateGrid();
+    handleAutoGrid();
   }
 
-  if (currentQuadrantEffect)
-    processQuadrant(currentQuadrantEffect,false,frozenFrame);
-  else
-    ctx.putImageData(frozenFrame,0,0);
+  if (currentQuadrantEffect) {
+    renderKaleidoscope(currentQuadrantEffect);
+  } else {
+    ctx.drawImage(offscreenCanvas, 0, 0);
+  }
 
   requestAnimationFrame(loop);
 }
 
-/* ---------- processQuadrant (UNCHANGED) ---------- */
+function handleAutoGrid() {
+  // Pro-Tip: Don't calculate every single frame to save CPU
+  const now = Date.now();
+  if (now - lastUpdate < 100) return; 
+  lastUpdate = now;
 
-function processQuadrant(target,setState,sourceImageData){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.imageSmoothingEnabled=false;
-  tempCtx.imageSmoothingEnabled=false;
+  const data = offscreenCtx.getImageData(0, 0, offscreenCanvas.width, offscreenCanvas.height).data;
+  let brightnessSum = 0;
+  for (let i = 0; i < data.length; i += 40) { // Sample every 10th pixel
+    brightnessSum += (data[i] + data[i+1] + data[i+2]) / 3;
+  }
+  const avg = brightnessSum / (data.length / 40);
+  
+  // Map brightness 0-255 to grid 2-40
+  const newSize = Math.floor(2 + (avg / 255) * 38);
+  
+  // Smooth transition: only update if change is significant
+  if (Math.abs(newSize - cols) > 1) {
+    cols = rows = newSize;
+    updateGridDisplay();
+  }
+}
 
-  const sw=sourceImageData.width;
-  const sh=sourceImageData.height;
-  const data=sourceImageData.data;
+function renderKaleidoscope(target) {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.imageSmoothingEnabled = false;
 
-  const baseW=canvas.width/cols;
-  const baseH=canvas.height/rows;
+  const baseW = canvas.width / cols;
+  const baseH = canvas.height / rows;
 
-  for(let r=0;r<rows;r++){
-    for(let c=0;c<cols;c++){
-      const x=Math.floor(c*baseW);
-      const y=Math.floor(r*baseH);
-      const w=Math.floor(baseW*cellScale);
-      const h=Math.floor(baseH*cellScale);
-      const qW=Math.floor(w/2);
-      const qH=Math.floor(h/2);
-      if(qW<=0||qH<=0) continue;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const centerX = c * baseW + baseW / 2;
+      const centerY = r * baseH + baseH / 2;
 
-      let sx=x, sy=y;
-      if(target==='A2') sx+=qW;
-      if(target==='B1') sy+=qH;
-      if(target==='B2'){sx+=qW;sy+=qH;}
+      // The size we draw, affected by cellScale
+      const drawW = baseW * cellScale;
+      const drawH = baseH * cellScale;
+      const qW = drawW / 2;
+      const qH = drawH / 2;
 
-      sx=Math.min(sw-qW,Math.max(0,sx));
-      sy=Math.min(sh-qH,Math.max(0,sy));
+      // Source Sampling Coordinates (The "Quadrant" logic)
+      let sx = c * (offscreenCanvas.width / cols);
+      let sy = r * (offscreenCanvas.height / rows);
+      const sSizeW = (offscreenCanvas.width / cols) / 2;
+      const sSizeH = (offscreenCanvas.height / rows) / 2;
 
-      tempCanvas.width=qW;
-      tempCanvas.height=qH;
-      const img=tempCtx.createImageData(qW,qH);
+      if (target === 'A2') sx += sSizeW;
+      if (target === 'B1') sy += sSizeH;
+      if (target === 'B2') { sx += sSizeW; sy += sSizeH; }
 
-      for(let yy=0;yy<qH;yy++)
-        for(let xx=0;xx<qW;xx++){
-          const si=((sy+yy)*sw+(sx+xx))*4;
-          const di=(yy*qW+xx)*4;
-          img.data.set(data.slice(si,si+4),di);
-        }
+      // Draw the 4 mirrored quadrants
+      const transforms = [
+        { sx: 1, sy: 1 },  { sx: -1, sy: 1 },
+        { sx: 1, sy: -1 }, { sx: -1, sy: -1 }
+      ];
 
-      tempCtx.putImageData(img,0,0);
-
-      [
-        {dx:x,dy:y,sx:1,sy:1},
-        {dx:x+w,dy:y,sx:-1,sy:1},
-        {dx:x,dy:y+h,sx:1,sy:-1},
-        {dx:x+w,dy:y+h,sx:-1,sy:-1}
-      ].forEach(o=>{
+      transforms.forEach(t => {
         ctx.save();
-        ctx.translate(o.dx,o.dy);
-        ctx.scale(o.sx,o.sy);
-        ctx.drawImage(tempCanvas,0,0,qW,qH,0,0,w/2,h/2);
+        ctx.translate(centerX, centerY);
+        ctx.scale(t.sx, t.sy);
+        // Draw image from offscreen source
+        ctx.drawImage(offscreenCanvas, sx, sy, sSizeW, sSizeH, 0, 0, qW, qH);
         ctx.restore();
       });
     }
   }
 }
 
-/* ---------- DOWNLOAD ---------- */
-
 document.getElementById('downloadButton').onclick = () => {
-  const a=document.createElement('a');
-  a.download='image.png';
-  a.href=canvas.toDataURL();
+  const a = document.createElement('a');
+  a.download = 'kaleidoscope-export.png';
+  a.href = canvas.toDataURL('image/png');
   a.click();
 };
 
-/* ---------- DEFAULTS ---------- */
-
+// Init
 setEffect('A1');
-updateGrid();
+updateGridDisplay();
 </script>
-
 </body>
 </html>
