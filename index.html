@@ -29,7 +29,6 @@ canvas {
   aspect-ratio: 1 / 1;
   background: #000;
   display: block;
-  /* Pixelated rendering helps prevent blurry edges that cause gaps */
   image-rendering: pixelated; 
 }
 
@@ -79,6 +78,37 @@ canvas {
   .slider-wrap { font-size: 0.75rem; }
 }
 
+/* MODAL STYLES */
+#infoModal {
+  display: none;
+  position: fixed;
+  z-index: 1000;
+  left: 0; top: 0; width: 100%; height: 100%;
+  background-color: rgba(0,0,0,0.85);
+  overflow-y: auto;
+}
+.modal-content {
+  background-color: #222;
+  margin: 10% auto;
+  padding: 20px;
+  border: 1px solid #444;
+  width: 85%;
+  max-width: 600px;
+  border-radius: 12px;
+  line-height: 1.6;
+}
+.close-modal {
+  background: #007bff;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  float: right;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+/* UTILS */
 .button:active { background: #444; }
 .button.active-effect { background: #007bff; border-color: #00a2ff; }
 .effect-button { grid-column: span 1; }
@@ -106,6 +136,24 @@ input[type="range"] { width: 100%; cursor: pointer; }
 
 <body>
 
+<div id="infoModal">
+  <div class="modal-content">
+    <button class="close-modal" onclick="closeModal()">Close</button>
+    <h2 style="color:#00ffcc">How to Use</h2>
+    <p><strong>Start:</strong> Tap Start to activate your camera.</p>
+    <p><strong>Switch:</strong> If your device has multiple cameras (like front and back), use Switch to cycle through them.</p>
+    <p><strong>Freeze:</strong> Use Freeze/Unfreeze to lock a specific frame and continue applying effects to that static image.</p>
+    <p><strong>Grid Density:</strong> Slide to change the complexity.</p>
+    <p><strong>Auto Mode:</strong> Tick Auto to let the processor dynamically adjust the grid based on the brightness and movement in your scene.</p>
+    <p>Fine-tune your visual using the <strong>Brightness, Contrast, and Saturation</strong> sliders. These adjustments happen in real-time.</p>
+    <p>Choose from four distinct mathematical mirroring modes: <strong>Agnes & Bridget & Chuck & Donald</strong> (named after modernist artists).</p>
+    <p><strong>Original:</strong> View the processed feed without the kaleidoscope grid.</p>
+    <p><strong>Download:</strong> Hit the green button to save your current view as a high-resolution PNG file.</p>
+    <hr style="border:0; border-top:1px solid #444">
+    <p style="font-style: italic; color: #aaa;">For best results, try a selfie with most of your head filling the frame, straight on, with a plain background. I think the default 10x10 grid is best.</p>
+  </div>
+</div>
+
 <div id="app">
   <canvas id="canvas"></canvas>
 
@@ -116,7 +164,8 @@ input[type="range"] { width: 100%; cursor: pointer; }
     <button id="switchCameraButton" class="button span-1" style="display: none;">Switch</button>
     <button id="freezeButton" class="button span-2">Freeze/Unfreeze</button>
     
-    <label class="button span-4">
+    <button id="infoBtn" class="button span-2" style="background: #444; font-weight: bold;">Info</button>
+    <label class="button span-2">
       <input id="autoGridToggle" type="checkbox" style="margin-right: 8px; transform: scale(1.5);"> Auto
     </label>
 
@@ -162,6 +211,12 @@ const offscreenCtx = offscreenCanvas.getContext('2d', { willReadFrequently: true
 let stream = null, frozen = false, gridSize = 10, autoGrid = false;
 let currentEffect = 'A1', brightness = 100, contrast = 100, saturation = 100;
 let lastAutoUpdate = 0, currentFacingMode = 'user';
+
+/* --- Modal Logic --- */
+const modal = document.getElementById("infoModal");
+document.getElementById("infoBtn").onclick = () => modal.style.display = "block";
+function closeModal() { modal.style.display = "none"; }
+window.onclick = (event) => { if (event.target == modal) closeModal(); }
 
 const updateVal = (id, val) => document.getElementById(id).textContent = val;
 
@@ -260,31 +315,22 @@ function handleAutoGrid() {
 }
 
 function renderKaleidoscope() {
-  // 1. Force everything to whole numbers to avoid sub-pixel gaps
   const step = Math.floor(canvas.width / gridSize);
   const half = Math.floor(step / 2);
-  
-  // 2. IMPORTANT: Do not clearRect here. Let the new frame overwrite the old one.
-  // We draw the basic image first as a background "safety net"
   ctx.drawImage(offscreenCanvas, 0, 0, canvas.width, canvas.height);
-
   for (let r = 0; r < gridSize; r++) {
     for (let c = 0; c < gridSize; c++) {
       const cx = c * step + half;
       const cy = r * step + half;
-
       let sx = c * step;
       let sy = r * step;
       if (currentEffect === 'A2') sx += half;
       if (currentEffect === 'B1') sy += half;
       if (currentEffect === 'B2') { sx += half; sy += half; }
-
       [{x:1,y:1},{x:-1,y:1},{x:1,y:-1},{x:-1,y:-1}].forEach(t => {
         ctx.save();
         ctx.translate(cx, cy);
         ctx.scale(t.x, t.y);
-        
-        // Use a 1px overlap to ensure no gaps are possible
         ctx.drawImage(offscreenCanvas, sx, sy, half, half, 0, 0, half + 1, half + 1);
         ctx.restore();
       });
