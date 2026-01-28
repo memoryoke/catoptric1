@@ -29,7 +29,6 @@ canvas {
   aspect-ratio: 1 / 1;
   background: #000;
   display: block;
-  image-rendering: pixelated; 
 }
 
 #controls {
@@ -140,7 +139,7 @@ input[type="range"] { width: 100%; cursor: pointer; }
   <div class="modal-content">
     <button class="close-modal" onclick="closeModal()">Close</button>
     <h2 style="color:#00ffcc">How to Use</h2>
-    <p><strong>START:</strong> Tap Start to activate your camera.</p>
+    <p><strong>Startx:</strong> Tap Start to activate your camera.</p>
     <p><strong>Switch:</strong> If your device has multiple cameras (like front and back), use Switch to cycle through them.</p>
     <p><strong>Freeze:</strong> Use Freeze/Unfreeze to lock a specific frame and continue applying effects to that static image.</p>
     <p><strong>Grid Density:</strong> Slide to change the complexity.</p>
@@ -315,25 +314,94 @@ function handleAutoGrid() {
 }
 
 function renderKaleidoscope() {
-  const step = Math.floor(canvas.width / gridSize);
-  const half = Math.floor(step / 2);
-  ctx.drawImage(offscreenCanvas, 0, 0, canvas.width, canvas.height);
+  // 1. Calculate grid dimensions
+  const step = Math.floor(canvas.width / gridSize); // Size of the full cell
+  const qSize = step / 2; // Size of one quadrant (25% area)
+  
+  // We draw slightly larger (+0.5) to prevent black hairlines between quadrants
+  const dSize = qSize + 0.5; 
+
+  // 2. Define Mirroring Configurations (Scale X, Scale Y)
+  // [TL, TR, BL, BR] -> [A1, A2, B1, B2]
+  let scales = [];
+
+  switch (currentEffect) {
+    case 'A1': // AGNES: A1 (TL) is Original
+      scales = [
+        [1, 1],   // TL (Original)
+        [-1, 1],  // TR (Mirrored Horz)
+        [1, -1],  // BL (Mirrored Vert)
+        [-1, -1]  // BR (Mirrored H+V)
+      ];
+      break;
+    case 'B1': // BRIDGET: B1 (BL) is Original
+      scales = [
+        [1, -1],  // TL (Mirrored Vert from BL)
+        [-1, -1], // TR (Mirrored H+V from BL)
+        [1, 1],   // BL (Original)
+        [-1, 1]   // BR (Mirrored Horz from BL)
+      ];
+      break;
+    case 'A2': // CHUCK: A2 (TR) is Original
+      scales = [
+        [-1, 1],  // TL (Mirrored Horz from TR)
+        [1, 1],   // TR (Original)
+        [-1, -1], // BL (Mirrored H+V from TR)
+        [1, -1]   // BR (Mirrored Vert from TR)
+      ];
+      break;
+    case 'B2': // DONALD: B2 (BR) is Original
+      scales = [
+        [-1, -1], // TL (Mirrored H+V from BR)
+        [1, -1],  // TR (Mirrored Vert from BR)
+        [-1, 1],  // BL (Mirrored Horz from BR)
+        [1, 1]    // BR (Original)
+      ];
+      break;
+    default:
+      ctx.drawImage(offscreenCanvas, 0, 0, canvas.width, canvas.height);
+      return;
+  }
+
+  // 3. Render Loop
   for (let r = 0; r < gridSize; r++) {
+    const sy = r * step; // Source Y (Full cell top)
+    const dy = r * step; // Dest Y (Full cell top)
+
     for (let c = 0; c < gridSize; c++) {
-      const cx = c * step + half;
-      const cy = r * step + half;
-      let sx = c * step;
-      let sy = r * step;
-      if (currentEffect === 'A2') sx += half;
-      if (currentEffect === 'B1') sy += half;
-      if (currentEffect === 'B2') { sx += half; sy += half; }
-      [{x:1,y:1},{x:-1,y:1},{x:1,y:-1},{x:-1,y:-1}].forEach(t => {
-        ctx.save();
-        ctx.translate(cx, cy);
-        ctx.scale(t.x, t.y);
-        ctx.drawImage(offscreenCanvas, sx, sy, half, half, 0, 0, half + 1, half + 1);
-        ctx.restore();
-      });
+      const sx = c * step; // Source X (Full cell left)
+      const dx = c * step; // Dest X (Full cell left)
+
+      // Calculate centers of the 4 quadrants for this cell
+      // We translate to the center of the quadrant -> scale -> draw -> restore
+      
+      // Quadrant 1: Top-Left (A1)
+      ctx.save();
+      ctx.translate(dx + qSize/2, dy + qSize/2);
+      ctx.scale(scales[0][0], scales[0][1]);
+      ctx.drawImage(offscreenCanvas, sx, sy, step, step, -qSize/2, -qSize/2, dSize, dSize);
+      ctx.restore();
+
+      // Quadrant 2: Top-Right (A2)
+      ctx.save();
+      ctx.translate(dx + qSize*1.5, dy + qSize/2);
+      ctx.scale(scales[1][0], scales[1][1]);
+      ctx.drawImage(offscreenCanvas, sx, sy, step, step, -qSize/2, -qSize/2, dSize, dSize);
+      ctx.restore();
+
+      // Quadrant 3: Bottom-Left (B1)
+      ctx.save();
+      ctx.translate(dx + qSize/2, dy + qSize*1.5);
+      ctx.scale(scales[2][0], scales[2][1]);
+      ctx.drawImage(offscreenCanvas, sx, sy, step, step, -qSize/2, -qSize/2, dSize, dSize);
+      ctx.restore();
+
+      // Quadrant 4: Bottom-Right (B2)
+      ctx.save();
+      ctx.translate(dx + qSize*1.5, dy + qSize*1.5);
+      ctx.scale(scales[3][0], scales[3][1]);
+      ctx.drawImage(offscreenCanvas, sx, sy, step, step, -qSize/2, -qSize/2, dSize, dSize);
+      ctx.restore();
     }
   }
 }
@@ -350,4 +418,3 @@ setEffect('A1');
 </script>
 </body>
 </html>
-
